@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { AuthProvider } from "../lib/AuthProvider";
 import { Toaster } from "../components/ui/toaster";
 import { ThemeProvider } from "../lib/ThemeProvider";
+import Image from "next/image";
 
 
 const geistSans = Geist({
@@ -40,7 +41,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
         >
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <div className="flex justify-center items-center h-64">
+                <Image
+                  src="/logo.png"
+                  alt="Loading"
+                  width={48}
+                  height={48}
+                  className="animate-pulse"
+                />
+              </div>
             </div>
           }>
             <AuthProvider>
