@@ -9,6 +9,15 @@ export default {
   ],
   theme: {
   	extend: {
+		keyframes: {
+			'wave-move-forever': {
+			  '0%': { transform: 'translate3d(-90px,0,0)' },
+			  '100%': { transform: 'translate3d(85px,0,0)' },
+			},
+		  },
+		  animation: {
+			'wave-parallax': 'wave-move-forever 25s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite',
+		  },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -58,5 +67,6 @@ export default {
   		}
   	}
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

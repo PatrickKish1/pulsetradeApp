@@ -1,9 +1,12 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { type JsonRpcRequest } from '../../global';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// User Types
 export interface User {
   address: string;
   email?: string;
@@ -14,6 +17,7 @@ export interface User {
   socialInfo?: Record<string, string | number | boolean>;
 }
 
+// Chat Types
 export interface ChatMessage {
   id: string;
   chatId: string;
@@ -42,6 +46,7 @@ export interface Chat {
   name?: string;
 }
 
+// AI Types
 export interface AIMessage {
   id: string;
   content: string;
@@ -63,6 +68,7 @@ export interface AIChat {
   updatedAt: number;
 }
 
+// Trade Types
 export interface TradeValues {
   takeProfit: string;
   stopLoss: string;
@@ -78,6 +84,7 @@ export interface AIResponse {
   threadId: string;
 }
 
+// Web3Mail Types
 export interface Web3MailConfig {
   workerpoolAddress: string;
   senderName: string;
@@ -87,10 +94,33 @@ export interface Web3MailConfig {
 export type Address = `0x${string}`;
 export type AddressOrEnsName = Address | string;
 
+// Validation functions
 export const isAddress = (value: string): value is Address => {
   return value.startsWith('0x') && value.length === 42;
 };
 
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Formatting functions
+export const shortenAddress = (address: string, chars = 4): string => {
+  if (!address) return '';
+  return `${address.substring(0, chars + 2)}...${address.substring(address.length - chars)}`;
+};
+
+export const formatTimestamp = (timestamp: number): string => {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(timestamp);
+};
+
+// Constants
 export const IEXEC_EXPLORER_URL = 'https://explorer.iex.ec/bellecour/dataset/';
 export const WEB3MAIL_APP_ENS = 'web3mail.apps.iexec.eth';
 export const IEXEC_CHAIN_ID = '0x86'; // 134
@@ -101,6 +131,7 @@ export const DEFAULT_WEB3MAIL_CONFIG: Web3MailConfig = {
   contentType: 'text/plain'
 };
 
+// Chain Configuration
 interface ChainParams {
   chainId: string;
   chainName: string;
@@ -113,7 +144,20 @@ interface ChainParams {
   blockExplorerUrls: string[];
 }
 
-export function checkIsConnected(): Window['ethereum'] {
+export const IEXEC_CHAIN_PARAMS: ChainParams = {
+  chainId: IEXEC_CHAIN_ID,
+  chainName: 'iExec Sidechain',
+  nativeCurrency: {
+    name: 'xRLC',
+    symbol: 'xRLC',
+    decimals: 18,
+  },
+  rpcUrls: ['https://bellecour.iex.ec'],
+  blockExplorerUrls: ['https://blockscout-bellecour.iex.ec'],
+};
+
+// Wallet and Chain Connection
+export function checkIsConnected() {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('No Ethereum provider found. Please install MetaMask or use a Web3 browser.');
   }
@@ -124,29 +168,21 @@ export async function checkCurrentChain(): Promise<void> {
   const provider = checkIsConnected();
   
   try {
+    if (!provider) {
+      throw new Error('Provider not available');
+    }
+
     const currentChainId = await provider.request<string>({
       method: 'eth_chainId',
       params: [],
     });
 
     if (currentChainId !== IEXEC_CHAIN_ID) {
-      console.log('Please switch to iExec chain');
-      
-      const chainParams: ChainParams = {
-        chainId: '0x86',
-        chainName: 'iExec Sidechain',
-        nativeCurrency: {
-          name: 'xRLC',
-          symbol: 'xRLC',
-          decimals: 18,
-        },
-        rpcUrls: ['https://bellecour.iex.ec'],
-        blockExplorerUrls: ['https://blockscout-bellecour.iex.ec'],
-      };
+      console.log('Switching to iExec chain...');
       
       await provider.request<null>({
         method: 'wallet_addEthereumChain',
-        params: [chainParams],
+        params: [IEXEC_CHAIN_PARAMS],
       });
       
       console.log('Switched to iExec chain');
@@ -156,3 +192,8 @@ export async function checkCurrentChain(): Promise<void> {
     throw err;
   }
 }
+
+// URL and Link Helpers
+export const getExplorerLink = (protectedDataAddress: string): string => {
+  return `${IEXEC_EXPLORER_URL}${protectedDataAddress}`;
+};
