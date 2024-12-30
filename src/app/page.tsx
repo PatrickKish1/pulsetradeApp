@@ -1,20 +1,140 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
 import { LineChart, BarChart, Headphones, Building2, ArrowRightLeft } from 'lucide-react';
 import Image from 'next/image';
+import db from '../../firebase.config';
+import Footer from '../components/Footer';
 import Header from '../components/Header';
 import MaxWidthWrapper from '../components/MaxWidthWrapper';
 import { Button } from '../components/ui/button';
-import Footer from '../components/Footer';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import UserOnboarding from '../components/UserOnBoarding';
+import useAuth from '../lib/hooks/useAuth';
 
-
+// Cache user status checks to prevent excessive Firestore reads
+const userStatusCache = new Map<string, { status: boolean; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function Index() {
+  const router = useRouter();
+  const { isConnected, address, isLoading } = useAuth();
+  const [hasClickedGetStarted, setHasClickedGetStarted] = useState(false);
+  const [isCheckingUser, setIsCheckingUser] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const checkUserStatus = useCallback(async () => {
+    if (!address || !isConnected) {
+      setIsCheckingUser(false);
+      return;
+    }
+
+    const lowercaseAddress = address.toLowerCase();
+
+    // Check cache first
+    const cachedStatus = userStatusCache.get(lowercaseAddress);
+    if (cachedStatus && Date.now() - cachedStatus.timestamp < CACHE_DURATION) {
+      setNeedsOnboarding(!cachedStatus.status);
+      setIsCheckingUser(false);
+      if (cachedStatus.status) {
+        router.push('/chats');
+      }
+      return;
+    }
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', lowercaseAddress));
+      const exists = userDoc.exists();
+      
+      // Update cache
+      userStatusCache.set(lowercaseAddress, {
+        status: exists,
+        timestamp: Date.now()
+      });
+
+      if (exists) {
+        setNeedsOnboarding(false);
+        router.push('/chats');
+      } else {
+        setNeedsOnboarding(true);
+      }
+    } catch (error) {
+      console.error('Error checking user status:', error);
+      setError('Failed to verify user status. Please try again.');
+      setNeedsOnboarding(true);
+    } finally {
+      setIsCheckingUser(false);
+    }
+  }, [address, isConnected, router]);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    const checkStatus = async () => {
+      if (mounted) {
+        await checkUserStatus();
+      }
+    };
+
+    checkStatus();
+
+    return () => {
+      mounted = false;
+    };
+  }, [checkUserStatus]);
+
+  const handleGetStarted = () => {
+    setHasClickedGetStarted(true);
+  };
+
+  const handleRetry = async () => {
+    setError(null);
+    setIsCheckingUser(true);
+    await checkUserStatus();
+  };
+
+  if (isCheckingUser || isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50"> 
+        <div className="flex justify-center items-center h-64">
+          <Image
+            src="/logo.png"
+            alt="Loading"
+            width={48}
+            height={48}
+            className="animate-pulse"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={handleRetry}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if ((isConnected && needsOnboarding) || hasClickedGetStarted) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <UserOnboarding />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#ecf0f1]">
       <Header />
-      
       <main className="flex-grow bg-slate-100">
         <MaxWidthWrapper>
           <div className="py-12 mb-32">
@@ -28,7 +148,10 @@ export default function Index() {
                   Our AI-powered platform offers seamless, secure, and intelligent trading services at your fingertips. Let our advanced AI make smart trading decisions while you maintain full control of your financial future.
                 </p>
                 <div className="flex gap-4">
-                  <Button className='bg-blue-500 text-2xl hover:bg-blue-500 p-6'>
+                  <Button 
+                    onClick={handleGetStarted}
+                    className="bg-blue-500 text-2xl hover:bg-blue-600 p-6"
+                  >
                     Get Started
                   </Button>
                 </div>
@@ -121,6 +244,7 @@ export default function Index() {
                 <Button 
                   variant="default"
                   className="bg-blue-900 hover:bg-blue-800 p-5 text-lg"
+                  onClick={handleGetStarted}
                 >
                   Customize Your Strategy
                 </Button>

@@ -25,7 +25,7 @@ interface ConnectButtonProps {
 
 export function ConnectButton({ 
   variant = 'default',
-  size = 'default',
+  size = 'lg',
   className = '',
   label = 'Connect Wallet'
 }: ConnectButtonProps) {

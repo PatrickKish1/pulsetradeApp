@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import Web3 from 'web3';
 import { useAuthStore } from '../stores/authStore';
 import db from '../../../firebase.config';
+import { useRouter } from 'next/navigation';
 
 interface UserInfo {
   address: string;
@@ -32,6 +33,7 @@ const isEthereumAvailable = (): boolean => {
 };
 
 export function useAuth(): UseAuthReturn {
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const web3Ref = useRef<Web3 | null>(null);
@@ -123,7 +125,8 @@ export function useAuth(): UseAuthReturn {
     authStore.reset();
     setUserInfo(null);
     web3Ref.current = null;
-  }, [authStore]);
+    router.push('/');
+  }, [authStore, router]);
 
   // Handle wallet events
   useEffect(() => {

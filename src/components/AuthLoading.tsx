@@ -1,7 +1,6 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
-
+import Image from 'next/image';
 interface AuthLoadingProps {
   message?: string;
 }
@@ -10,7 +9,15 @@ export function AuthLoading({ message = 'Loading...' }: AuthLoadingProps) {
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm">
       <div className="min-h-screen flex flex-col items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex justify-center items-center h-64">
+          <Image
+            src="/logo.png"
+            alt="Loading"
+            width={48}
+            height={48}
+            className="animate-pulse"
+          />
+        </div>
         <p className="mt-4 text-sm text-muted-foreground">{message}</p>
       </div>
     </div>

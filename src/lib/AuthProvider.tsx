@@ -1,10 +1,10 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import Web3 from 'web3';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import Image from 'next/image';
 
 interface Web3ContextType {
   web3: Web3 | null;
@@ -114,7 +114,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex justify-center items-center h-64">
+          <Image
+            src="/logo.png"
+            alt="Loading"
+            width={48}
+            height={48}
+            className="animate-pulse"
+          />
+        </div>
       </div>
     );
   }
