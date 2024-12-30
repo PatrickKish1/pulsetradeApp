@@ -14,6 +14,10 @@ interface DashboardStats {
   openPositions: number;
   totalProfitLoss: number;
   winRate: number;
+  marginUsed: number;
+  availableBalance: number;
+  dailyPnL: number;
+  weeklyPnL: number;
 }
 
 interface RecentTrade {
@@ -22,8 +26,46 @@ interface RecentTrade {
   asset: string;
   amount: number;
   profit: number;
+  leverage: number;
   timestamp: number;
+  status: 'completed' | 'pending' | 'cancelled';
 }
+
+// Mock data generator functions
+const generateMockStats = (): DashboardStats => ({
+  totalBalance: 100000 + Math.random() * 20000,
+  openPositions: Math.floor(Math.random() * 5) + 2,
+  totalProfitLoss: 5000 + Math.random() * 2000,
+  winRate: 65 + Math.random() * 10,
+  marginUsed: 25000 + Math.random() * 5000,
+  availableBalance: 75000 + Math.random() * 15000,
+  dailyPnL: 500 + Math.random() * 200,
+  weeklyPnL: 2500 + Math.random() * 1000
+});
+
+const generateMockTrades = (): RecentTrade[] => {
+  const trades: RecentTrade[] = [];
+  const assets = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
+  const now = Date.now();
+
+  for (let i = 0; i < 5; i++) {
+    trades.push({
+      id: i + 1,
+      type: Math.random() > 0.5 ? 'Long' : 'Short',
+      asset: assets[Math.floor(Math.random() * assets.length)],
+      amount: 1000 + Math.random() * 5000,
+      profit: (Math.random() * 1000) - 300,
+      leverage: Math.floor(Math.random() * 5) + 1,
+      timestamp: now - (Math.random() * 24 * 60 * 60 * 1000),
+      status: i === 0 ? 'pending' : 'completed'
+    });
+  }
+
+  return trades.sort((a, b) => b.timestamp - a.timestamp);
+};
+
+// Update interval for real-time data (ms)
+const UPDATE_INTERVAL = 5000;
 
 export default function TradingDashboard() {
   const { address, isConnected } = useAuth();
@@ -31,7 +73,11 @@ export default function TradingDashboard() {
     totalBalance: 0,
     openPositions: 0,
     totalProfitLoss: 0,
-    winRate: 0
+    winRate: 0,
+    marginUsed: 0,
+    availableBalance: 0,
+    dailyPnL: 0,
+    weeklyPnL: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [recentTrades, setRecentTrades] = useState<RecentTrade[]>([]);
@@ -40,33 +86,12 @@ export default function TradingDashboard() {
     if (!isConnected || !address) return;
 
     try {
-      // Load address details and states
-      // This would be replaced with actual contract data
-      setStats({
-        totalBalance: 50000,
-        openPositions: 3,
-        totalProfitLoss: 1500,
-        winRate: 65
-      });
+      // Simulate real-time data updates
+      const mockStats = generateMockStats();
+      const mockTrades = generateMockTrades();
 
-      setRecentTrades([
-        { 
-          id: 1, 
-          type: 'Long', 
-          asset: 'BTC/USD', 
-          amount: 1000, 
-          profit: 150, 
-          timestamp: Date.now() 
-        },
-        { 
-          id: 2, 
-          type: 'Short', 
-          asset: 'ETH/USD', 
-          amount: 500, 
-          profit: -50, 
-          timestamp: Date.now() - 3600000 
-        }
-      ]);
+      setStats(mockStats);
+      setRecentTrades(mockTrades);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -76,15 +101,18 @@ export default function TradingDashboard() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [loadDashboardData]);
+    
+    // Set up periodic updates
+    if (isConnected) {
+      const interval = setInterval(loadDashboardData, UPDATE_INTERVAL);
+      return () => clearInterval(interval);
+    }
+  }, [loadDashboardData, isConnected]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#ecf0f1]">
-        <Header />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <p>Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading dashboard...</p>
       </div>
     );
   }
@@ -107,7 +135,10 @@ export default function TradingDashboard() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Trading Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Trading Dashboard</h1>
+          <p className="text-gray-500">Real-time overview of your trading activity</p>
+        </div>
         <Link href="/trading/execute">
           <Button>
             <ArrowUpRight className="mr-2 h-4 w-4" />
@@ -123,9 +154,12 @@ export default function TradingDashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm text-gray-500">Total Balance</p>
-                <p className="text-2xl font-bold">${stats.totalBalance.toLocaleString()}</p>
+                <p className="text-2xl font-bold">${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Available: ${stats.availableBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <DollarSign className="h-5 w-5 text-gray-400" />
+              <DollarSign className="h-5 w-5 text-blue-400" />
             </div>
           </CardContent>
         </Card>
@@ -136,8 +170,11 @@ export default function TradingDashboard() {
               <div>
                 <p className="text-sm text-gray-500">Open Positions</p>
                 <p className="text-2xl font-bold">{stats.openPositions}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Margin Used: ${stats.marginUsed.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <TrendingUp className="h-5 w-5 text-gray-400" />
+              <TrendingUp className="h-5 w-5 text-green-400" />
             </div>
           </CardContent>
         </Card>
@@ -150,10 +187,18 @@ export default function TradingDashboard() {
                 <p className={`text-2xl font-bold ${
                   stats.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  ${stats.totalProfitLoss.toLocaleString()}
+                  ${stats.totalProfitLoss.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </p>
+                <div className="flex gap-2 mt-1 text-sm">
+                  <span className={stats.dailyPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    24h: {stats.dailyPnL >= 0 ? '+' : ''}{stats.dailyPnL.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={stats.weeklyPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    7d: {stats.weeklyPnL >= 0 ? '+' : ''}{stats.weeklyPnL.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </span>
+                </div>
               </div>
-              <TrendingUp className="h-5 w-5 text-gray-400" />
+              <TrendingUp className="h-5 w-5 text-purple-400" />
             </div>
           </CardContent>
         </Card>
@@ -163,9 +208,10 @@ export default function TradingDashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm text-gray-500">Win Rate</p>
-                <p className="text-2xl font-bold">{stats.winRate}%</p>
+                <p className="text-2xl font-bold">{stats.winRate.toFixed(1)}%</p>
+                <p className="text-sm text-gray-500 mt-1">Performance Score</p>
               </div>
-              <History className="h-5 w-5 text-gray-400" />
+              <History className="h-5 w-5 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
@@ -191,19 +237,33 @@ export default function TradingDashboard() {
                 className="flex items-center justify-between p-4 border rounded-lg"
               >
                 <div>
-                  <p className="font-medium">{trade.asset}</p>
-                  <p className="text-sm text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-sm ${
+                      trade.type === 'Long' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {trade.type}
+                    </span>
+                    <span className="font-medium">{trade.asset}</span>
+                    {trade.status === 'pending' && (
+                      <span className="px-2 py-1 rounded text-sm bg-yellow-100 text-yellow-800">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
                     {new Date(trade.timestamp).toLocaleString()}
                   </p>
                 </div>
-                <div>
+                <div className="text-right">
                   <p className={`font-medium ${
                     trade.profit >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    ${trade.profit.toLocaleString()}
+                    ${trade.profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-sm text-gray-500">
-                    ${trade.amount.toLocaleString()}
+                    ${trade.amount.toLocaleString()} • {trade.leverage}x
                   </p>
                 </div>
               </div>

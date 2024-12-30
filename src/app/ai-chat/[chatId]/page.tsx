@@ -15,11 +15,12 @@ import { AIMessage, AIChat, TradeValues, AIResponse, ChatMessage } from '@/src/l
 import db from '../../../../firebase.config';
 import useAuth from '@/src/lib/hooks/useAuth';
 
+
 const MESSAGES_PER_PAGE = 50;
 const AI_SENDER_ID = 'ai-assistant';
 const DEFAULT_USER_ID = 'anonymous-user';
 
-export default function ChatPage({ onSendMessage }: AIWelcomeProps) {
+export default function ChatPage() {
   const params = useParams();
   const chatId = params?.chatId as string;
   const router = useRouter();
@@ -183,7 +184,9 @@ export default function ChatPage({ onSendMessage }: AIWelcomeProps) {
         updatedMessage += " please in your response can you indicate the values for the take profit, stop loss and lot size respectively";
       }
 
-      const response = await fetch('https://tradellm.onrender.com/api/chat', {
+      const url = 'https://tradellm.onrender.com/api/chat'
+      const chatUrl = new URL(url)
+      const response = await fetch(`${chatUrl}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

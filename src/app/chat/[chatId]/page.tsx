@@ -182,6 +182,7 @@ export default function ChatPage() {
 
   const recipient = chat.participants.find(p => p.address !== address);
   const recipientAddress = recipient?.address || 'Unknown';
+  const explorerUrl = "https://blockscout-bellecour.iex.ec"
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">

@@ -7,9 +7,7 @@ import Header from '@/src/components/Header';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
-import { createStarkNetTradingService } from '@/src/lib/services/starknet-trading';
 import useAuth from '@/src/lib/hooks/useAuth';
-
 
 
 interface ManagedAccount {
@@ -29,6 +27,45 @@ interface AdminMetrics {
   totalVolume: number;
 }
 
+// Simulate API delay
+const FETCH_DELAY = 1000;
+
+// Mock data generator functions
+const generateMockMetrics = (): AdminMetrics => ({
+  trustScore: 85,
+  totalManagedAccounts: 12,
+  activeAgreements: 8,
+  successRate: 75,
+  totalVolume: 1000000
+});
+
+const generateMockAccounts = (): ManagedAccount[] => [
+  {
+    address: "0x1234...5678",
+    balance: 50000,
+    profitShare: 20,
+    totalTrades: 45,
+    performance: 15.5,
+    lastActive: Date.now() - 3600000
+  },
+  {
+    address: "0x8765...4321",
+    balance: 75000,
+    profitShare: 15,
+    totalTrades: 32,
+    performance: -5.2,
+    lastActive: Date.now() - 7200000
+  },
+  {
+    address: "0x9876...5432",
+    balance: 100000,
+    profitShare: 25,
+    totalTrades: 60,
+    performance: 22.8,
+    lastActive: Date.now() - 1800000
+  }
+];
+
 export default function AdminDashboard() {
   const { address, isConnected } = useAuth();
   const [managedAccounts, setManagedAccounts] = useState<ManagedAccount[]>([]);
@@ -46,58 +83,30 @@ export default function AdminDashboard() {
     if (!isConnected || !address) return;
 
     try {
-      const starkNetService = createStarkNetTradingService(
-        process.env.NEXT_PUBLIC_STARKNET_CONTRACT_ADDRESS!,
-        process.env.NEXT_PUBLIC_STARKNET_PROVIDER_URL!
-      );
-
-      await starkNetService.initializeContract(address);
+      setIsLoading(true);
       
-      const [status, performance] = await Promise.all([
-        starkNetService.checkAdminStatus(address),
-        starkNetService.getAdminPerformance(address),
-      ]);
-
-      setAdminStatus(status);
-      setMetrics({
-        trustScore: performance.trustScore,
-        totalManagedAccounts: performance.totalManagedAccounts,
-        activeAgreements: performance.totalManagedAccounts,
-        successRate: performance.successRate,
-        totalVolume: 1000000 // Mock data
-      });
-
-      // Mock managed accounts data
-      setManagedAccounts([
-        {
-          address: "0x1234...5678",
-          balance: 50000,
-          profitShare: 20,
-          totalTrades: 45,
-          performance: 15.5,
-          lastActive: Date.now() - 3600000
-        },
-        {
-          address: "0x8765...4321",
-          balance: 75000,
-          profitShare: 15,
-          totalTrades: 32,
-          performance: -5.2,
-          lastActive: Date.now() - 7200000
-        }
-      ]);
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, FETCH_DELAY));
+      
+      // Load mock data
+      const mockMetrics = generateMockMetrics();
+      const mockAccounts = generateMockAccounts();
+      
+      setMetrics(mockMetrics);
+      setManagedAccounts(mockAccounts);
+      
+      // Simulate random admin status (0: good, 1: warning)
+      setAdminStatus(Math.random() > 0.8 ? 1 : 0);
     } catch (error) {
       console.error('Failed to load admin data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [address, isConnected, setIsLoading]); // Dependencies for useCallback
+  }, [address, isConnected]);
 
   useEffect(() => {
-    if (typeof isConnected === 'boolean' && isConnected && address) {
-      loadAdminData();
-    }
-  }, [loadAdminData, isConnected, address]);
+    loadAdminData();
+  }, [loadAdminData]);
 
   if (isLoading) {
     return (
@@ -137,7 +146,7 @@ export default function AdminDashboard() {
 
       {/* Admin Status Alert */}
       {adminStatus === 1 && (
-        <Alert variant='destructive'>
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Your address has received warnings. Please review your trading practices.

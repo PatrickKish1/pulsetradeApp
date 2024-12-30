@@ -26,6 +26,49 @@ interface TraderAllocation {
   status: 'active' | 'warning' | 'terminated';
 }
 
+// Simulate API delay
+const FETCH_DELAY = 1500;
+
+// Mock data generators
+const generateMockMetrics = (): PoolMetrics => ({
+  totalFunds: 2500000,
+  activeTraders: 45,
+  averageAllocation: 55000,
+  successRate: 72,
+  riskLevel: 3
+});
+
+const generateMockAllocations = (): TraderAllocation[] => [
+  {
+    address: "0x1234...5678",
+    allocation: 75000,
+    performance: 18.5,
+    startDate: Date.now() - 7776000000,
+    status: 'active'
+  },
+  {
+    address: "0x8765...4321",
+    allocation: 50000,
+    performance: -8.2,
+    startDate: Date.now() - 2592000000,
+    status: 'warning'
+  },
+  {
+    address: "0x9876...5432",
+    allocation: 100000,
+    performance: 25.4,
+    startDate: Date.now() - 5184000000,
+    status: 'active'
+  },
+  {
+    address: "0x4321...8765",
+    allocation: 35000,
+    performance: -12.8,
+    startDate: Date.now() - 1296000000,
+    status: 'terminated'
+  }
+];
+
 export default function PropFirmOverview() {
   const { address, isConnected } = useAuth();
   const [metrics, setMetrics] = useState<PoolMetrics>({
@@ -40,37 +83,23 @@ export default function PropFirmOverview() {
 
   const loadPropFirmData = useCallback(async () => {
     try {
-      // Mock data - replace with actual API calls
-      setMetrics({
-        totalFunds: 1000000,
-        activeTraders: 25,
-        averageAllocation: 40000,
-        successRate: 75,
-        riskLevel: 3
-      });
-
-      setAllocations([
-        {
-          address: "0x1234...5678",
-          allocation: 50000,
-          performance: 15.5,
-          startDate: Date.now() - 7776000000, // 90 days ago
-          status: 'active'
-        },
-        {
-          address: "0x8765...4321",
-          allocation: 30000,
-          performance: -5.2,
-          startDate: Date.now() - 2592000000, // 30 days ago
-          status: 'warning'
-        }
-      ]);
+      setIsLoading(true);
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, FETCH_DELAY));
+      
+      // Load mock data
+      const mockMetrics = generateMockMetrics();
+      const mockAllocations = generateMockAllocations();
+      
+      setMetrics(mockMetrics);
+      setAllocations(mockAllocations);
     } catch (error) {
       console.error('Failed to load prop firm data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [setMetrics, setAllocations, setIsLoading]);
+  }, []);
 
   useEffect(() => {
     if (isConnected && address) {

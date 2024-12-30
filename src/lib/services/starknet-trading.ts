@@ -2,63 +2,62 @@ import { Contract, Provider, Account, stark, constants } from 'starknet';
 import { toast } from 'react-hot-toast';
 import { STARKNET_CONTRACT_ABI } from './abi-config';
 
-// Contract ABI - import your compiled contract ABI
-const ABI = STARKNET_CONTRACT_ABI;
-
 // Types
-export interface TrustAgreement {
+interface TrustAgreement {
   user: string;
   admin: string;
   agreementTerms: string;
   isValid: boolean;
 }
 
-export interface AdminStats {
+interface AdminStats {
   trustScore: number;
   status: number;
   totalManagedAccounts: number;
   successRate: number;
 }
 
-export interface PropPool {
+interface PropPool {
   id: string;
   totalAmount: number;
   active: boolean;
   params: string;
 }
 
-export interface PlatformStats {
+interface PlatformStats {
   totalUsers: number;
   totalAdmins: number;
   totalTrades: number;
   activePoolsCount: number;
 }
 
-export interface VoteSubmission {
+interface VoteSubmission {
   admin: string;
   voteType: number;  // 0 for positive, 1 for negative
   voteWeight: number;
 }
 
-export interface ContractEvent {
+interface ContractEvent {
   data: string[];
   keys: string[];
   transactionHash: string;
 }
 
-class StarkNetTradingService {
+export class StarkNetTradingService {
   private contract: Contract | null = null;
   private contractAddress: string;
   private provider: Provider;
 
   constructor(contractAddress: string, providerUrl: string) {
     this.contractAddress = contractAddress;
+    
+    // Use browser's URL API for validation
+    const parsedUrl = new URL(providerUrl);
     this.provider = new Provider({
-      nodeUrl: providerUrl
+      nodeUrl: parsedUrl.toString()
     });
   }
 
-  // Initialize contract
   public async initializeContract(accountAddress: string): Promise<void> {
     try {
       const account = new Account(
@@ -68,7 +67,7 @@ class StarkNetTradingService {
       );
 
       this.contract = new Contract(
-        ABI,
+        STARKNET_CONTRACT_ABI,
         this.contractAddress,
         account
       );
@@ -144,7 +143,7 @@ class StarkNetTradingService {
     }
   }
 
-  // Governance
+  // Governance Functions
   public async submitVote(params: VoteSubmission): Promise<boolean> {
     try {
       if (!this.contract) throw new Error('Contract not initialized');
@@ -200,7 +199,7 @@ class StarkNetTradingService {
     }
   }
 
-  // Prop Firm Management
+  // Prop Firm Management Functions
   public async createPropPool(
     initialAmount: number,
     poolParams: string
@@ -266,20 +265,20 @@ class StarkNetTradingService {
     }
   }
 
-  // Platform Statistics
+  // Platform Statistics Functions
   public async getPlatformStats(): Promise<PlatformStats> {
     try {
       if (!this.contract) throw new Error('Contract not initialized');
 
-      const states = await this.contract.get_platform_states();
+      const stats = await this.contract.get_platform_states();
       return {
-        totalUsers: states.total_users.toNumber(),
-        totalAdmins: states.total_admins.toNumber(),
-        totalTrades: states.total_trades.toNumber(),
-        activePoolsCount: states.active_pools.toNumber()
+        totalUsers: stats.total_users.toNumber(),
+        totalAdmins: stats.total_admins.toNumber(),
+        totalTrades: stats.total_trades.toNumber(),
+        activePoolsCount: stats.active_pools.toNumber()
       };
     } catch (error) {
-      console.error('Failed to get platform states:', error);
+      console.error('Failed to get platform stats:', error);
       toast.error('Failed to fetch platform statistics');
       throw error;
     }
@@ -289,12 +288,12 @@ class StarkNetTradingService {
     try {
       if (!this.contract) throw new Error('Contract not initialized');
 
-      const states = await this.contract.get_admin_performance(admin);
+      const performance = await this.contract.get_admin_performance(admin);
       return {
-        trustScore: states.trust_score.toNumber(),
-        status: states.status.toNumber(),
-        totalManagedAccounts: states.total_managed_accounts.toNumber(),
-        successRate: states.success_rate.toNumber()
+        trustScore: performance.trust_score.toNumber(),
+        status: performance.status.toNumber(),
+        totalManagedAccounts: performance.total_managed_accounts.toNumber(),
+        successRate: performance.success_rate.toNumber()
       };
     } catch (error) {
       console.error('Failed to get admin performance:', error);
@@ -321,20 +320,45 @@ class StarkNetTradingService {
     );
   }
 
+  // Utility Functions
+  private async waitForTransaction(hash: string): Promise<void> {
+    try {
+      await this.provider.waitForTransaction(hash);
+    } catch (error) {
+      console.error('Transaction failed:', error);
+      throw error;
+    }
+  }
+
   // Cleanup
   public removeAllListeners(): void {
     if (this.contract) {
       this.contract.removeAllListeners();
     }
   }
+
+  // Error Handling Utility
+  private handleError(error: any, message: string): never {
+    console.error(`${message}:`, error);
+    toast.error(message);
+    throw error;
+  }
 }
 
+// Factory function to create service instance
 export const createStarkNetTradingService = (
   contractAddress: string,
   providerUrl: string
-) => {
+): StarkNetTradingService => {
   return new StarkNetTradingService(contractAddress, providerUrl);
 };
 
-export type { StarkNetTradingService };
-export default StarkNetTradingService
+// Export types
+export type {
+  TrustAgreement,
+  AdminStats,
+  PropPool,
+  PlatformStats,
+  VoteSubmission,
+  ContractEvent
+};

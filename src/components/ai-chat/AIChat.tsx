@@ -13,6 +13,7 @@ import useAuth from '@/src/lib/hooks/useAuth';
 
 
 
+
 // Flexible instructions that can be easily updated
 const chatInstructions = [
   "Ask about market analysis and trading insights",
@@ -195,7 +196,9 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
         userMessage.toLowerCase().includes(term)
       );
 
-      const response = await fetch('https://tradellm.onrender.com/api/chat', {
+      const url = 'https://tradellm.onrender.com/api/chat'
+      const chatUrl = new URL(url)
+      const response = await fetch(`${chatUrl}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

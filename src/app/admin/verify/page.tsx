@@ -1,16 +1,14 @@
-// app/(routes)/admin/verify/page.tsx
 "use client";
 
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Shield, Check, AlertCircle } from 'lucide-react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
 import Header from '@/src/components/Header';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Textarea } from '@/src/components/ui/textarea';
-import { createStarkNetTradingService } from '@/src/lib/services/starknet-trading';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
 import useAuth from '@/src/lib/hooks/useAuth';
 import { Input } from '@/src/components/ui/input';
 
@@ -23,6 +21,9 @@ interface VerificationStep {
   completed: boolean;
 }
 
+// Simulate verification delays
+const VERIFICATION_DELAY = 1500;
+
 export default function AdminVerificationPage() {
   const { address, isConnected } = useAuth();
   const [userAddress, setUserAddress] = useState('');
@@ -34,7 +35,7 @@ export default function AdminVerificationPage() {
     { 
       id: 1, 
       title: 'Identity Verification', 
-      description: 'Verify your identity using StarkNet credentials',
+      description: 'Verify your identity using credentials',
       completed: false 
     },
     { 
@@ -59,17 +60,8 @@ export default function AdminVerificationPage() {
 
     setIsLoading(true);
     try {
-      const starkNetService = createStarkNetTradingService(
-        process.env.NEXT_PUBLIC_STARKNET_CONTRACT_ADDRESS!,
-        process.env.NEXT_PUBLIC_STARKNET_PROVIDER_URL!
-      );
-      
-      await starkNetService.initializeContract(address);
-      
-      const credentials = `${address}-${Date.now()}`;
-      const proof = `proof-${Date.now()}`;
-      
-      await starkNetService.registerIdentity(credentials, proof);
+      // Simulate verification process
+      await new Promise(resolve => setTimeout(resolve, VERIFICATION_DELAY));
       
       updateStepStatus(1, true);
       toast.success('Identity verified successfully');
@@ -89,26 +81,8 @@ export default function AdminVerificationPage() {
 
     setIsLoading(true);
     try {
-      const starkNetService = createStarkNetTradingService(
-        process.env.NEXT_PUBLIC_STARKNET_CONTRACT_ADDRESS!,
-        process.env.NEXT_PUBLIC_STARKNET_PROVIDER_URL!
-      );
-      
-      await starkNetService.initializeContract(address!);
-
-      const terms = {
-        profitShare: parseInt(profitShare),
-        adminAddress: address,
-        userAddress,
-        timestamp: Date.now(),
-        terms: agreementTerms
-      };
-
-      await starkNetService.createTrustAgreement(
-        userAddress,
-        JSON.stringify(terms),
-        'signature'
-      );
+      // Simulate agreement creation
+      await new Promise(resolve => setTimeout(resolve, VERIFICATION_DELAY));
 
       updateStepStatus(2, true);
       toast.success('Trust agreement created successfully');
@@ -123,21 +97,11 @@ export default function AdminVerificationPage() {
   const checkAdminStatus = async () => {
     setIsLoading(true);
     try {
-      const starkNetService = createStarkNetTradingService(
-        process.env.NEXT_PUBLIC_STARKNET_CONTRACT_ADDRESS!,
-        process.env.NEXT_PUBLIC_STARKNET_PROVIDER_URL!
-      );
+      // Simulate status check
+      await new Promise(resolve => setTimeout(resolve, VERIFICATION_DELAY));
       
-      await starkNetService.initializeContract(address!);
-      
-      const status = await starkNetService.checkAdminStatus(address!);
-      
-      if (status === 0) {
-        updateStepStatus(3, true);
-        toast.success('Admin status verified');
-      } else {
-        toast.error('Admin status check failed');
-      }
+      updateStepStatus(3, true);
+      toast.success('Admin status verified');
     } catch (error) {
       console.error('Status check failed:', error);
       toast.error('Failed to verify admin status');
@@ -158,14 +122,14 @@ export default function AdminVerificationPage() {
     return (
       <div className="min-h-screen flex flex-col bg-[#ecf0f1]">
         <Header />
-      <div className="p-6">
-        <Alert>
-          <AlertDescription className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            Please connect your wallet to proceed with verification.
-          </AlertDescription>
-        </Alert>
-      </div>
+        <div className="p-6">
+          <Alert>
+            <AlertDescription className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Please connect your wallet to proceed with verification.
+            </AlertDescription>
+          </Alert>
+        </div>
       </div>
     );
   }

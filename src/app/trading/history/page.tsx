@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Download, LineChart, TrendingUp, TrendingDown } from 'lucide-react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
 import Header from '@/src/components/Header';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import useAuth from '@/src/lib/hooks/useAuth';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
-
 
 interface Trade {
   id: number;
@@ -19,6 +18,8 @@ interface Trade {
   exitPrice: number;
   profit: number;
   timestamp: number;
+  leverage: number;
+  fees: number;
 }
 
 interface TradeStats {
@@ -32,10 +33,48 @@ interface TradeStats {
   winRate: number;
 }
 
+// Simulate API delay
+const FETCH_DELAY = 1000;
+
+// Mock data generators
+const generateMockTrades = (): Trade[] => {
+  const assets = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
+  const now = Date.now();
+  const trades: Trade[] = [];
+
+  for (let i = 0; i < 20; i++) {
+    const type = Math.random() > 0.5 ? 'Long' : 'Short';
+    const asset = assets[Math.floor(Math.random() * assets.length)];
+    const amount = Math.floor(Math.random() * 5000) + 1000;
+    const entryPrice = Math.floor(Math.random() * 10000) + 30000;
+    const priceChange = (Math.random() * 1000) - 500;
+    const exitPrice = entryPrice + priceChange;
+    const leverage = Math.floor(Math.random() * 5) + 1;
+    const fees = amount * 0.001;
+
+    trades.push({
+      id: i + 1,
+      type,
+      asset,
+      amount,
+      entryPrice,
+      exitPrice,
+      profit: type === 'Long' ? 
+        (exitPrice - entryPrice) * (amount / entryPrice) * leverage - fees :
+        (entryPrice - exitPrice) * (amount / entryPrice) * leverage - fees,
+      timestamp: now - (Math.random() * 30 * 24 * 60 * 60 * 1000),
+      leverage,
+      fees
+    });
+  }
+
+  return trades.sort((a, b) => b.timestamp - a.timestamp);
+};
+
 export default function TradeHistoryPage() {
   const { address, isConnected } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [states, setStates] = useState<TradeStats>({
+  const [stats, setStats] = useState<TradeStats>({
     totalTrades: 0,
     winningTrades: 0,
     losingTrades: 0,
@@ -49,71 +88,43 @@ export default function TradeHistoryPage() {
   const [assetFilter, setAssetFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
 
-  const calculateStats = useCallback((trades: Trade[]) => {
-    const winningTrades = trades.filter(t => t.profit > 0);
-    const losingTrades = trades.filter(t => t.profit < 0);
-    const totalProfit = trades.reduce((sum, t) => sum + t.profit, 0);
+  const calculateStats = useCallback((filteredTrades: Trade[]) => {
+    const winningTrades = filteredTrades.filter(t => t.profit > 0);
+    const losingTrades = filteredTrades.filter(t => t.profit < 0);
+    const totalProfit = filteredTrades.reduce((sum, t) => sum + t.profit, 0);
 
-    setStates({
-      totalTrades: trades.length,
+    setStats({
+      totalTrades: filteredTrades.length,
       winningTrades: winningTrades.length,
       losingTrades: losingTrades.length,
       totalProfit,
-      largestWin: Math.max(...trades.map(t => t.profit), 0),
-      largestLoss: Math.min(...trades.map(t => t.profit), 0),
-      averageTrade: totalProfit / trades.length || 0,
-      winRate: (winningTrades.length / trades.length) * 100 || 0
+      largestWin: Math.max(...filteredTrades.map(t => t.profit), 0),
+      largestLoss: Math.min(...filteredTrades.map(t => t.profit), 0),
+      averageTrade: totalProfit / filteredTrades.length || 0,
+      winRate: (winningTrades.length / filteredTrades.length) * 100 || 0
     });
   }, []);
 
   const loadTradeHistory = useCallback(async () => {
     try {
-      // Mock trade data - replace with actual API calls
-      const mockTrades: Trade[] = [
-        {
-          id: 1,
-          type: 'Long',
-          asset: 'BTC/USD',
-          amount: 1000,
-          entryPrice: 44000,
-          exitPrice: 45000,
-          profit: 1000,
-          timestamp: Date.now() - 3600000
-        },
-        {
-          id: 2,
-          type: 'Short',
-          asset: 'ETH/USD',
-          amount: 2000,
-          entryPrice: 2500,
-          exitPrice: 2400,
-          profit: 2000,
-          timestamp: Date.now() - 7200000
-        },
-        {
-          id: 3,
-          type: 'Long',
-          asset: 'BTC/USD',
-          amount: 1500,
-          entryPrice: 43000,
-          exitPrice: 42000,
-          profit: -1500,
-          timestamp: Date.now() - 86400000
-        }
-      ];
+      setIsLoading(true);
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, FETCH_DELAY));
+      
+      const mockTrades = generateMockTrades();
 
       // Apply filters
       let filteredTrades = [...mockTrades];
       
       if (timeFilter !== 'all') {
         const now = Date.now();
-        const filterMap = {
+        const filterMap: Record<string, number> = {
           '24h': now - 86400000,
           '7d': now - 604800000,
           '30d': now - 2592000000
         };
         filteredTrades = filteredTrades.filter(
-          trade => trade.timestamp >= filterMap[timeFilter as keyof typeof filterMap]
+          trade => trade.timestamp >= filterMap[timeFilter]
         );
       }
 
@@ -137,7 +148,19 @@ export default function TradeHistoryPage() {
   }, [isConnected, address, loadTradeHistory]);
 
   const exportTradeHistory = () => {
-    const headers = ['ID', 'Type', 'Asset', 'Amount', 'Entry Price', 'Exit Price', 'Profit', 'Date'];
+    const headers = [
+      'ID',
+      'Type',
+      'Asset',
+      'Amount',
+      'Entry Price',
+      'Exit Price',
+      'Profit/Loss',
+      'Leverage',
+      'Fees',
+      'Date'
+    ];
+    
     const csv = [
       headers.join(','),
       ...trades.map(trade => [
@@ -147,7 +170,9 @@ export default function TradeHistoryPage() {
         trade.amount,
         trade.entryPrice,
         trade.exitPrice,
-        trade.profit,
+        trade.profit.toFixed(2),
+        trade.leverage,
+        trade.fees.toFixed(2),
         new Date(trade.timestamp).toLocaleString()
       ].join(','))
     ].join('\n');
@@ -210,6 +235,7 @@ export default function TradeHistoryPage() {
               <SelectItem value="all">All Assets</SelectItem>
               <SelectItem value="BTC/USD">BTC/USD</SelectItem>
               <SelectItem value="ETH/USD">ETH/USD</SelectItem>
+              <SelectItem value="SOL/USD">SOL/USD</SelectItem>
             </SelectContent>
           </Select>
 
@@ -228,9 +254,9 @@ export default function TradeHistoryPage() {
               <div>
                 <p className="text-sm text-gray-500">Total Profit/Loss</p>
                 <p className={`text-2xl font-bold ${
-                  states.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'
+                  stats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  ${states.totalProfit.toLocaleString()}
+                  ${stats.totalProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </p>
               </div>
               <LineChart className="h-5 w-5 text-gray-400" />
@@ -243,7 +269,7 @@ export default function TradeHistoryPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm text-gray-500">Win Rate</p>
-                <p className="text-2xl font-bold">{states.winRate.toFixed(1)}%</p>
+                <p className="text-2xl font-bold">{stats.winRate.toFixed(1)}%</p>
               </div>
               <TrendingUp className="h-5 w-5 text-green-500" />
             </div>
@@ -256,7 +282,7 @@ export default function TradeHistoryPage() {
               <div>
                 <p className="text-sm text-gray-500">Largest Win</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ${states.largestWin.toLocaleString()}
+                  ${stats.largestWin.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </p>
               </div>
               <TrendingUp className="h-5 w-5 text-green-500" />
@@ -270,7 +296,7 @@ export default function TradeHistoryPage() {
               <div>
                 <p className="text-sm text-gray-500">Largest Loss</p>
                 <p className="text-2xl font-bold text-red-600">
-                  ${states.largestLoss.toLocaleString()}
+                  ${stats.largestLoss.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </p>
               </div>
               <TrendingDown className="h-5 w-5 text-red-500" />
@@ -295,6 +321,8 @@ export default function TradeHistoryPage() {
                   <th className="px-4 py-2 text-right">Amount</th>
                   <th className="px-4 py-2 text-right">Entry Price</th>
                   <th className="px-4 py-2 text-right">Exit Price</th>
+                  <th className="px-4 py-2 text-right">Leverage</th>
+                  <th className="px-4 py-2 text-right">Fees</th>
                   <th className="px-4 py-2 text-right">Profit/Loss</th>
                 </tr>
               </thead>
@@ -323,10 +351,14 @@ export default function TradeHistoryPage() {
                     <td className="px-4 py-2 text-right">
                       ${trade.exitPrice.toLocaleString()}
                     </td>
+                    <td className="px-4 py-2 text-right">{trade.leverage}x</td>
+                    <td className="px-4 py-2 text-right">
+                      ${trade.fees.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
                     <td className={`px-4 py-2 text-right ${
                       trade.profit >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      ${trade.profit.toLocaleString()}
+                      ${trade.profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))}

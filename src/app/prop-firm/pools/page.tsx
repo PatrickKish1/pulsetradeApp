@@ -3,18 +3,14 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Plus } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
+import { Input } from '@/src/components/ui/input';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
 import { DialogHeader } from '@/src/components/ui/dialog';
 import useAuth from '@/src/lib/hooks/useAuth';
-import { createStarkNetTradingService } from '@/src/lib/services/starknet-trading';
-import { Dialog, DialogTrigger, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
-import { Input } from '@/src/components/ui/input';
-
-
-
 
 interface Pool {
   id: string;
@@ -39,6 +35,70 @@ interface AllocationRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+// Simulate API delay
+const OPERATION_DELAY = 1000;
+
+// Mock data generators
+const generateMockPools = (): Pool[] => [
+  {
+    id: '1',
+    totalAmount: 500000,
+    allocatedAmount: 300000,
+    tradersCount: 15,
+    performance: 12.5,
+    status: 'active',
+    createdAt: Date.now() - 2592000000,
+    minAllocation: 10000,
+    maxAllocation: 50000,
+    riskLevel: 2
+  },
+  {
+    id: '2',
+    totalAmount: 250000,
+    allocatedAmount: 250000,
+    tradersCount: 10,
+    performance: 8.2,
+    status: 'full',
+    createdAt: Date.now() - 5184000000,
+    minAllocation: 5000,
+    maxAllocation: 25000,
+    riskLevel: 3
+  },
+  {
+    id: '3',
+    totalAmount: 750000,
+    allocatedAmount: 450000,
+    tradersCount: 20,
+    performance: 15.8,
+    status: 'active',
+    createdAt: Date.now() - 1296000000,
+    minAllocation: 15000,
+    maxAllocation: 75000,
+    riskLevel: 1
+  }
+];
+
+const generateMockRequests = (): AllocationRequest[] => [
+  {
+    id: '1',
+    traderAddress: '0xabcd...1234',
+    experience: 'intermediate',
+    requestedAmount: 25000,
+    strategy: 'Swing Trading',
+    timestamp: Date.now() - 86400000,
+    status: 'pending'
+  },
+  {
+    id: '2',
+    traderAddress: '0xefgh...5678',
+    experience: 'advanced',
+    requestedAmount: 50000,
+    strategy: 'Day Trading',
+    timestamp: Date.now() - 43200000,
+    status: 'pending'
+  }
+];
+
 export default function PoolManagementPage() {
   const { address, isConnected } = useAuth();
   const [pools, setPools] = useState<Pool[]>([]);
@@ -52,45 +112,12 @@ export default function PoolManagementPage() {
 
   const loadPools = async () => {
     try {
-      // Mock data - replace with actual contract calls
-      setPools([
-        {
-          id: '1',
-          totalAmount: 500000,
-          allocatedAmount: 300000,
-          tradersCount: 15,
-          performance: 12.5,
-          status: 'active',
-          createdAt: Date.now() - 2592000000,
-          minAllocation: 10000,
-          maxAllocation: 50000,
-          riskLevel: 2
-        },
-        {
-          id: '2',
-          totalAmount: 250000,
-          allocatedAmount: 250000,
-          tradersCount: 10,
-          performance: 8.2,
-          status: 'full',
-          createdAt: Date.now() - 5184000000,
-          minAllocation: 5000,
-          maxAllocation: 25000,
-          riskLevel: 3
-        }
-      ]);
-
-      setAllocationRequests([
-        {
-          id: '1',
-          traderAddress: '0xabcd...1234',
-          experience: 'intermediate',
-          requestedAmount: 25000,
-          strategy: 'Swing Trading',
-          timestamp: Date.now() - 86400000,
-          status: 'pending'
-        }
-      ]);
+      setIsLoading(true);
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, OPERATION_DELAY));
+      
+      setPools(generateMockPools());
+      setAllocationRequests(generateMockRequests());
     } catch (error) {
       console.error('Failed to load pools:', error);
       toast.error('Failed to load pool data');
@@ -118,30 +145,29 @@ export default function PoolManagementPage() {
 
     setIsLoading(true);
     try {
-      const starkNetService = createStarkNetTradingService(
-        process.env.NEXT_PUBLIC_STARKNET_CONTRACT_ADDRESS!,
-        process.env.NEXT_PUBLIC_STARKNET_PROVIDER_URL!
-      );
+      // Simulate pool creation delay
+      await new Promise(resolve => setTimeout(resolve, OPERATION_DELAY));
 
-      const poolParams = {
+      const newPool: Pool = {
+        id: Date.now().toString(),
+        totalAmount: Number(newPoolAmount),
+        allocatedAmount: 0,
+        tradersCount: 0,
+        performance: 0,
+        status: 'active',
+        createdAt: Date.now(),
         minAllocation: Number(minAllocation),
         maxAllocation: Number(maxAllocation),
-        riskLevel: Number(riskLevel),
-        createdAt: Date.now()
+        riskLevel: Number(riskLevel)
       };
 
-      await starkNetService.createPropPool(
-        Number(newPoolAmount),
-        JSON.stringify(poolParams)
-      );
-
+      setPools(currentPools => [newPool, ...currentPools]);
       toast.success('Pool created successfully');
       setShowNewPoolDialog(false);
       setNewPoolAmount('');
       setMinAllocation('');
       setMaxAllocation('');
       setRiskLevel('1');
-      loadPools();
     } catch (error) {
       console.error('Failed to create pool:', error);
       toast.error('Failed to create pool');
@@ -153,11 +179,30 @@ export default function PoolManagementPage() {
   const handleAllocationRequest = async (requestId: string, status: 'approved' | 'rejected') => {
     setIsLoading(true);
     try {
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, OPERATION_DELAY));
+
       setAllocationRequests(requests =>
         requests.map(request =>
           request.id === requestId ? { ...request, status } : request
         )
       );
+
+      // If approved, update pool allocated amount
+      if (status === 'approved') {
+        const request = allocationRequests.find(r => r.id === requestId);
+        if (request) {
+          setPools(currentPools =>
+            currentPools.map(pool =>
+              pool.id === '1' ? {
+                ...pool,
+                allocatedAmount: pool.allocatedAmount + request.requestedAmount,
+                tradersCount: pool.tradersCount + 1
+              } : pool
+            )
+          );
+        }
+      }
 
       toast.success(`Request ${status} successfully`);
     } catch (error) {
