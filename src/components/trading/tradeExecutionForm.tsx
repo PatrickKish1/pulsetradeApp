@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { toast } from 'react-hot-toast';
 import useAuth from '@/src/lib/hooks/useAuth';
@@ -11,11 +11,10 @@ import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 
-
 // Define proper types for Ethereum provider
 type EthereumWindow = Window & typeof globalThis & {
   ethereum?: Web3Provider;
-}
+};
 
 interface TradeExecutionFormProps {
   subAccountAddress?: string;
@@ -27,18 +26,57 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
   const [positionSize, setPositionSize] = useState<string>('');
   const [riskPercentage, setRiskPercentage] = useState<string>('1');
   const [orderType, setOrderType] = useState<string>('market');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasVerifiedTrust, setHasVerifiedTrust] = useState<boolean>(false);
+
+  // Initialize services
+  const starkNetService = createStarkNetTradingService();
+  
+  // Verify trust agreement on mount if subAccountAddress exists
+  useEffect(() => {
+    const verifyTrust = async () => {
+      if (!subAccountAddress || !address || !isConnected) return;
+      
+      try {
+        await starkNetService.initializeContract(address);
+        const isVerified = await starkNetService.verifyTrustAgreement(
+          address,
+          subAccountAddress
+        );
+        setHasVerifiedTrust(isVerified);
+        
+        if (!isVerified) {
+          toast.error('Trust agreement not verified for this account');
+        }
+      } catch (error) {
+        console.error('Trust verification failed:', error);
+        setHasVerifiedTrust(false);
+      }
+    };
+
+    verifyTrust();
+  }, [address, subAccountAddress, isConnected]);
 
   // Calculate position size based on risk percentage
-  const calculatePositionSize = (addressSize: string, risk: string) => {
-    if (!addressSize || !risk) return;
-    const size = (parseFloat(addressSize) * (parseFloat(risk) / 100)).toString();
-    setPositionSize(size);
-  };
+  const calculatePositionSize = useCallback((amountSize: string, risk: string) => {
+    if (!amountSize || !risk) return;
+    try {
+      const size = (parseFloat(amountSize) * (parseFloat(risk) / 100)).toString();
+      setPositionSize(size);
+    } catch (error) {
+      console.error('Position size calculation failed:', error);
+      toast.error('Invalid input for position size calculation');
+    }
+  }, []);
 
   const executeTrade = async () => {
     if (!isConnected || !address) {
       toast.error('Please connect your wallet');
+      return;
+    }
+
+    if (subAccountAddress && !hasVerifiedTrust) {
+      toast.error('Trust agreement not verified');
       return;
     }
 
@@ -50,32 +88,23 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
 
     setIsLoading(true);
     try {
+      // Initialize Ethereum service
       const ethService = createEthereumTradingService(
         process.env.NEXT_PUBLIC_ETH_CONTRACT_ADDRESS!
       );
-
       await ethService.initializeContract(ethereum);
 
+      // Execute trade on Ethereum
       await ethService.executeTrade({
         subAccountAddress: subAccountAddress || address,
         amount: ethers.parseEther(amount)
       });
 
-      const starkNetService = createStarkNetTradingService(
-        process.env.NEXT_PUBLIC_STARKNET_CONTRACT_ADDRESS!,
-        process.env.NEXT_PUBLIC_STARKNET_PROVIDER_URL!
-      );
+      // Record trade on StarkNet
       await starkNetService.initializeContract(address);
-
-      if (subAccountAddress) {
-        const isVerified = await starkNetService.verifyTrustAgreement(
-          address,
-          subAccountAddress
-        );
-        if (!isVerified) {
-          throw new Error('Trust agreement verification failed');
-        }
-      }
+      
+      // Additional StarkNet operations can be added here
+      // For example, updating platform stats or recording the trade
 
       toast.success('Trade executed successfully');
       
@@ -89,6 +118,18 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
       setIsLoading(false);
     }
   };
+
+  const isExecuteDisabled = useCallback((): boolean => {
+    // Convert amount to boolean context properly
+    const hasAmount = amount !== undefined && amount !== null && amount !== '';
+    // Ensure all conditions return boolean values
+    return Boolean(
+      isLoading || 
+      !hasAmount || 
+      !orderType || 
+      (subAccountAddress && !hasVerifiedTrust)
+    );
+  }, [isLoading, amount, orderType, subAccountAddress, hasVerifiedTrust]);
 
   return (
     <Card className="w-full max-w-2xl">
@@ -110,18 +151,20 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
               }}
               min="0"
               step="0.01"
+              disabled={isLoading}
             />
           </div>
 
           {/* Risk Parameters */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Risk Percentage</label>
-            <Select 
+            <Select
               value={riskPercentage}
               onValueChange={(value) => {
                 setRiskPercentage(value);
                 calculatePositionSize(amount, value);
               }}
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select risk %" />
@@ -152,9 +195,10 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
           {/* Order Type Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Order Type</label>
-            <Select 
+            <Select
               value={orderType}
               onValueChange={setOrderType}
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select order type" />
@@ -167,11 +211,18 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
             </Select>
           </div>
 
+          {/* Trust Agreement Warning */}
+          {subAccountAddress && !hasVerifiedTrust && (
+            <p className="text-sm text-red-500">
+              Trust agreement not verified for this account
+            </p>
+          )}
+
           {/* Execute Button */}
           <Button
             className="w-full"
             onClick={executeTrade}
-            disabled={isLoading || !amount || !orderType}
+            disabled={isExecuteDisabled()}
           >
             {isLoading ? (
               <div className="flex items-center justify-center">

@@ -42,7 +42,13 @@ const Footer = () => {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
             {/* Left Column */}
             <div className="md:col-span-8">
-              <Image width={100} height={100} src={'/logo.png'} alt='Footer Logo'/>
+              <Image
+              width={100}
+              height={100}
+              src={'/logo.png'}
+              priority={true}
+              alt='Footer Logo'
+              />
               <p className="mb-0">COPYRIGHT 2024 <span className="uppercase">Your Name</span></p>
               <p className="text-sm">
                 This work is licensed under a <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="text-white hover:text-gray-200">Creative Commons Attribution 4.0 International License</a>.

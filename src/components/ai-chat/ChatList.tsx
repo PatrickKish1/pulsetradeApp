@@ -74,6 +74,7 @@ export const AIChatList = ({ userId }: { userId: string }) => {
         <Image
           src="/logo.png"
           alt="Loading"
+          priority={true}
           width={48}
           height={48}
           className="animate-pulse"

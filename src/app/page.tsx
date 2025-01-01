@@ -13,22 +13,35 @@ import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import UserOnboarding from '../components/UserOnBoarding';
 import useAuth from '../lib/hooks/useAuth';
+import { useAuthStore } from '../lib/stores/authStore';
+import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
+import { Loader2 } from 'lucide-react';
+import ConnectButton from '../components/ConnectButton';
 
-// Cache user status checks to prevent excessive Firestore reads
-const userStatusCache = new Map<string, { status: boolean; timestamp: number }>();
+// Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+interface CacheEntry {
+  status: boolean;
+  timestamp: number;
+}
+const userStatusCache = new Map<string, CacheEntry>();
 
 export default function Index() {
   const router = useRouter();
-  const { isConnected, address, isLoading } = useAuth();
+  const { isConnected, address, isLoading: isAuthLoading } = useAuth();
+  const { userData, setUserData } = useAuthStore();
+  
+  // Local state
   const [hasClickedGetStarted, setHasClickedGetStarted] = useState(false);
   const [isCheckingUser, setIsCheckingUser] = useState(true);
-  const [needsOnboarding, setNeedsOnboarding] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPageLoading, setIsPageLoading] = useState(true);
 
+  // Check user onboarding status
   const checkUserStatus = useCallback(async () => {
     if (!address || !isConnected) {
       setIsCheckingUser(false);
+      setIsPageLoading(false);
       return;
     }
 
@@ -37,49 +50,61 @@ export default function Index() {
     // Check cache first
     const cachedStatus = userStatusCache.get(lowercaseAddress);
     if (cachedStatus && Date.now() - cachedStatus.timestamp < CACHE_DURATION) {
-      setNeedsOnboarding(!cachedStatus.status);
-      setIsCheckingUser(false);
       if (cachedStatus.status) {
         router.push('/chats');
       }
+      setIsCheckingUser(false);
+      setIsPageLoading(false);
       return;
     }
 
     try {
       const userDoc = await getDoc(doc(db, 'users', lowercaseAddress));
       const exists = userDoc.exists();
+      const userData = userDoc.data();
       
       // Update cache
       userStatusCache.set(lowercaseAddress, {
-        status: exists,
+        status: exists && userData?.isOnboardingComplete,
         timestamp: Date.now()
       });
 
+      // Update auth store with user data if exists
       if (exists) {
-        setNeedsOnboarding(false);
-        router.push('/chats');
-      } else {
-        setNeedsOnboarding(true);
+        setUserData({
+          address: lowercaseAddress,
+          email: userData?.email,
+          tradingLevel: userData?.tradingLevel || null,
+          accountType: userData?.accountType || null,
+          isOnboardingComplete: !!userData?.isOnboardingComplete,
+          lastSeen: userData?.lastSeen,
+          createdAt: userData?.createdAt
+        });
+
+        if (userData?.isOnboardingComplete) {
+          router.push('/chats');
+        }
       }
+      
     } catch (error) {
       console.error('Error checking user status:', error);
       setError('Failed to verify user status. Please try again.');
-      setNeedsOnboarding(true);
     } finally {
       setIsCheckingUser(false);
+      setIsPageLoading(false);
     }
-  }, [address, isConnected, router]);
+  }, [address, isConnected, router, setUserData]);
 
   useEffect(() => {
     let mounted = true;
     
-    const checkStatus = async () => {
+    const initializeCheck = async () => {
       if (mounted) {
         await checkUserStatus();
       }
     };
 
-    checkStatus();
+    initializeCheck();
 
     return () => {
       mounted = false;
@@ -87,26 +112,36 @@ export default function Index() {
   }, [checkUserStatus]);
 
   const handleGetStarted = () => {
-    setHasClickedGetStarted(true);
+    if (!isConnected) {
+      setHasClickedGetStarted(true);
+    } else if (!userData?.isOnboardingComplete) {
+      setHasClickedGetStarted(true);
+    } else {
+      router.push('/chats');
+    }
   };
 
   const handleRetry = async () => {
     setError(null);
     setIsCheckingUser(true);
+    setIsPageLoading(true);
     await checkUserStatus();
   };
 
-  if (isCheckingUser || isLoading) {
+  if (isPageLoading || isAuthLoading || isCheckingUser) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50"> 
-        <div className="flex justify-center items-center h-64">
-          <Image
-            src="/logo.png"
-            alt="Loading"
-            width={48}
-            height={48}
-            className="animate-pulse"
-          />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="Loading"
+              priority={true}
+              width={128}
+              height={128}
+              className="animate-bounce rounded-full bg-fuchsia-700"
+            />
+          </div>
         </div>
       </div>
     );
@@ -115,15 +150,22 @@ export default function Index() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={handleRetry}>Retry</Button>
-        </div>
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+          <Button 
+            onClick={handleRetry}
+            className="mt-4 w-full"
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </Alert>
       </div>
     );
   }
 
-  if ((isConnected && needsOnboarding) || hasClickedGetStarted) {
+  if ((isConnected && !userData?.isOnboardingComplete) || hasClickedGetStarted) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -145,15 +187,16 @@ export default function Index() {
                   Revolutionize Your Trading Experience
                 </h1>
                 <p className="text-lg text-gray-600 mb-8">
-                  Our AI-powered platform offers seamless, secure, and intelligent trading services at your fingertips. Let our advanced AI make smart trading decisions while you maintain full control of your financial future.
+                  Our AI-powered platform offers seamless, secure, and intelligent trading services at your fingertips. 
+                  Let our advanced AI make smart trading decisions while you maintain full control of your financial future.
                 </p>
                 <div className="flex gap-4">
-                  <Button 
-                    onClick={handleGetStarted}
+                  <ConnectButton
+                    label='Get Started' 
+                    showIcon={false}
+                    showDropdown={false}
                     className="bg-blue-500 text-2xl hover:bg-blue-600 p-6"
-                  >
-                    Get Started
-                  </Button>
+                  />
                 </div>
               </div>
               <div className="relative">
@@ -165,6 +208,7 @@ export default function Index() {
                     src="/trading.png"
                     width={800}
                     height={800}
+                    priority={true}
                     alt="Trading Platform Interface"
                     className="w-full h-full object-contain"
                   />
@@ -175,61 +219,99 @@ export default function Index() {
             {/* Sponsors Section */}
             <div className="mb-20 py-8 border-y border-gray-200">
               <div className="flex justify-between items-center gap-8 opacity-70">
-                <Image width={400} height={400} src="/iexec.png" alt="IExec Logo" className="h-12 object-contain" />
-                <Image width={400} height={400} src="https://avatars.githubusercontent.com/u/79376588?s=200&v=4" unoptimized alt="Spectral" className="h-12 object-contain" />
-                <Image width={400} height={400} src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fdiscord.do%2Fwp-content%2Fuploads%2F2023%2F08%2FEncode-Club.jpg&f=1&nofb=1&ipt=89f11c505aa37966e127c28771d2024e05a1b6f591f6bfae4005968c59f740d8&ipo=images" unoptimized alt="Encode" className="h-12 object-contain" />
-                <Image width={400} height={400} src="https://images.squarespace-cdn.com/content/v1/5f9bcc27c14fc6134658484b/1721990813731-K96BI6QY7PKEGTO8MNIM/AiL1r5pP_400x400.jpg?format=300w" unoptimized alt="Citrea" className="h-12 object-contain" />
-                <Image width={400} height={400} src="https://images.squarespace-cdn.com/content/5f9bcc27c14fc6134658484b/ddde9c0b-4f58-4bd1-8ea3-7f0a4991dfc2/nethermind.png?content-type=image%2Fpng" unoptimized alt="Nethermind" className="h-12 object-contain" />
-                <Image width={400} height={400} src="https://cryptobenelux.com/wp-content/uploads/2021/09/Koii-Logo-blue-1.png" unoptimized alt="Koii Network" className="h-12 object-contain" />
+                <Image
+                width={400}
+                height={400}
+                src="/iexec.png"
+                priority={true}
+                alt="IExec Logo"
+                className="h-12 object-contain"
+                />
+                <Image
+                width={400}
+                height={400}
+                src="https://avatars.githubusercontent.com/u/79376588?s=200&v=4"
+                unoptimized={true}
+                alt="Spectral"
+                className="h-12 object-contain"
+                />
+                <Image
+                width={400}
+                height={400}
+                src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fdiscord.do%2Fwp-content%2Fuploads%2F2023%2F08%2FEncode-Club.jpg&f=1&nofb=1&ipt=89f11c505aa37966e127c28771d2024e05a1b6f591f6bfae4005968c59f740d8&ipo=images"
+                unoptimized={true}
+                alt="Encode"
+                className="h-12 object-contain"
+                />
+                <Image
+                width={400}
+                height={400}
+                src="https://images.squarespace-cdn.com/content/v1/5f9bcc27c14fc6134658484b/1721990813731-K96BI6QY7PKEGTO8MNIM/AiL1r5pP_400x400.jpg?format=300w"
+                unoptimized={true}
+                alt="Citrea"
+                className="h-12 object-contain"
+                />
+                <Image
+                width={400}
+                height={400}
+                src="https://images.squarespace-cdn.com/content/5f9bcc27c14fc6134658484b/ddde9c0b-4f58-4bd1-8ea3-7f0a4991dfc2/nethermind.png?content-type=image%2Fpng"
+                unoptimized={true}
+                alt="Nethermind"
+                className="h-12 object-contain"
+                />
+                <Image
+                width={400}
+                height={400}
+                src="https://cryptobenelux.com/wp-content/uploads/2021/09/Koii-Logo-blue-1.png"
+                unoptimized={true}
+                alt="Koii Network"
+                className="h-12 object-contain" />
               </div>
             </div>
 
-            {/* Features Section */}
-            <div className="mb-20">
-              <h2 className="text-3xl font-bold text-center mb-12">
-                Discover the Advantages of Trading with AI
-              </h2>
-              <div className="grid md:grid-cols-3 gap-8">
-                <Card className="bg-gray-50">
-                  <CardHeader>
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <CardTitle>Smart Security</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-gray-600">
-                    Enterprise-grade security with advanced AI monitoring to protect your investments and trading activities.
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gray-50">
-                  <CardHeader>
-                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-                      <BarChart className="w-6 h-6 text-yellow-600" />
-                    </div>
-                    <CardTitle>AI-Powered Analysis</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-gray-600">
+            {/* Features Grid */}
+            <div className="grid md:grid-cols-3 gap-8 mb-20">
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardHeader className="space-y-1">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <LineChart className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <CardTitle>AI-Powered Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">
                     Advanced algorithms analyze market trends and provide real-time trading suggestions optimized for your portfolio.
-                  </CardContent>
-                </Card>
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card className="bg-gray-50">
-                  <CardHeader>
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </div>
-                    <CardTitle>Portfolio Optimization</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-gray-600">
-                    Smart portfolio management and diversification strategies powered by machine learning algorithms.
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardHeader className="space-y-1">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <BarChart className="w-6 h-6 text-green-600" />
+                  </div>
+                  <CardTitle>Smart Portfolio Management</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">
+                    Automated portfolio balancing and risk management powered by cutting-edge machine learning algorithms.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardHeader className="space-y-1">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                    <ArrowRightLeft className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <CardTitle>Seamless Integration</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">
+                    Connect your existing wallets and trading accounts for a unified trading experience.
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
             {/* AI Trading Section */}
@@ -254,6 +336,7 @@ export default function Index() {
                   src="/dashboard1.png"
                   width={800}
                   height={800}
+                  priority={true}
                   alt="AI Trading Interface"
                   className="rounded-lg shadow-lg"
                 />
@@ -261,18 +344,18 @@ export default function Index() {
             </div>
 
             {/* Stats Section */}
-            <div className="grid grid-cols-3 gap-8 py-12 bg-gray-900 text-white mt-28 mb-20 rounded-xl px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-12 bg-gray-900 text-white rounded-xl px-8 mb-20">
               <div className="text-center">
-                <div className="text-4xl font-bold mb-2">10+</div>
-                <div className="text-gray-300">Years of Experience</div>
+                <div className="text-4xl font-bold mb-2">$10M+</div>
+                <div className="text-gray-300">Trading Volume</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold mb-2">555+</div>
-                <div className="text-gray-300">Satisfied Clients</div>
+                <div className="text-4xl font-bold mb-2">10K+</div>
+                <div className="text-gray-300">Active Traders</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold mb-2">10+</div>
-                <div className="text-gray-300">Awards Achieved</div>
+                <div className="text-4xl font-bold mb-2">99.9%</div>
+                <div className="text-gray-300">Uptime</div>
               </div>
             </div>
 
@@ -298,7 +381,7 @@ export default function Index() {
                   </div>
 
                   <div className="flex gap-4 items-start">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <ArrowRightLeft className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
@@ -325,11 +408,29 @@ export default function Index() {
                     src="/mobile.png"
                     width={800}
                     height={800}
+                    priority={true}
                     alt="Trading Platform Mobile Interface"
                     className="w-full h-full object-contain"
                   />
                 </div>
               </div>
+            </div>
+
+            {/* CTA Section */}
+            <div className="text-center py-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl">
+              <h2 className="text-4xl font-bold text-white mb-6">
+                Ready to Transform Your Trading?
+              </h2>
+              <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+                Join thousands of traders who have already enhanced their trading strategy with our AI-powered platform.
+              </p>
+              <Button 
+                onClick={handleGetStarted}
+                size="lg"
+                className="bg-white text-blue-600 hover:bg-blue-50"
+              >
+                Start Trading Now
+              </Button>
             </div>
           </div>
         </MaxWidthWrapper>

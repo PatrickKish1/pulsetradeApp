@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ChevronDown, Loader2, Wallet, Copy } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ChevronDown, Loader2, Wallet, Copy, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/hooks/useAuth';
+import { useAuthStore } from '../lib/stores/authStore';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -21,89 +23,121 @@ interface ConnectButtonProps {
   size?: 'default' | 'sm' | 'lg';
   className?: string;
   label?: string;
+  showDropdown?: boolean;
+  showIcon?: boolean;
 }
 
 export function ConnectButton({ 
   variant = 'default',
   size = 'lg',
   className = '',
-  label = 'Connect Wallet'
+  label = 'Connect Wallet',
+  showDropdown = true,
+  showIcon = true
 }: ConnectButtonProps) {
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [balance, setBalance] = useState<string>('0.0000');
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   
   const { 
-    isConnected, 
-    address, 
-    error,
-    isLoading,
+    connectWallet,
     disconnectWallet,
     web3,
-    userInfo
+    error: authError,
+    isLoading: isAuthLoading,
   } = useAuth();
 
-  // Fetch balance when address changes or connection status updates
+  const {
+    account,
+    isConnected,
+    userData
+  } = useAuthStore();
+
+  // Memoize address formatting
+  const formattedAddress = useMemo(() => {
+    if (!account) return '';
+    return `${account.slice(0, 6)}...${account.slice(-4)}`;
+  }, [account]);
+
+  // Fetch balance with debounce and error handling
+  const fetchBalance = useCallback(async () => {
+    if (!web3 || !account || !isConnected) {
+      setBalance('0.0000');
+      return;
+    }
+
+    try {
+      setIsLoadingBalance(true);
+      const balanceWei = await web3.eth.getBalance(account);
+      const balanceEth = web3.utils.fromWei(balanceWei, 'ether');
+      setBalance(parseFloat(balanceEth).toFixed(4));
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      setBalance('0.0000');
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  }, [web3, account, isConnected]);
+
+  // Balance update effect with cleanup
   useEffect(() => {
     let mounted = true;
+    let intervalId: NodeJS.Timeout;
 
-    const fetchBalance = async () => {
-      if (web3 && address && isConnected) {
-        try {
-          setIsLoadingBalance(true);
-          const balanceWei = await web3.eth.getBalance(address);
-          const balanceEth = web3.utils.fromWei(balanceWei, 'ether');
-          if (mounted) {
-            setBalance(parseFloat(balanceEth).toFixed(4));
-          }
-        } catch (error) {
-          console.error('Error fetching balance:', error);
-          if (mounted) {
-            setBalance('0.0000');
-          }
-        } finally {
-          if (mounted) {
-            setIsLoadingBalance(false);
-          }
-        }
-      }
+    const updateBalance = async () => {
+      if (!mounted) return;
+      await fetchBalance();
     };
 
-    fetchBalance();
+    if (isConnected && account) {
+      updateBalance();
+      // Update balance every 30 seconds
+      intervalId = setInterval(updateBalance, 30000);
+    }
 
     return () => {
       mounted = false;
-    };
-  }, [web3, address, isConnected]);
-
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  const copyAddress = async () => {
-    if (address) {
-      try {
-        await navigator.clipboard.writeText(address);
-        toast({
-          title: "Address copied",
-          description: "Wallet address has been copied to clipboard",
-        });
-      } catch (error) {
-        console.error('Failed to copy address:', error);
-        toast({
-          title: "Error",
-          description: "Failed to copy address to clipboard",
-          variant: "destructive",
-        });
+      if (intervalId) {
+        clearInterval(intervalId);
       }
+    };
+  }, [fetchBalance, isConnected, account]);
+
+  const copyAddress = useCallback(async () => {
+    if (!account) return;
+    
+    try {
+      await navigator.clipboard.writeText(account);
+      toast({
+        title: "Address copied",
+        description: "Wallet address has been copied to clipboard",
+      });
+    } catch (error) {
+      console.error('Failed to copy address:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy address to clipboard",
+        variant: "destructive",
+      });
     }
-  };
+  }, [account]);
 
-  const handleConnect = () => {
+  const handleConnect = useCallback(() => {
     setShowModal(true);
-  };
+  }, []);
 
-  if (isLoading) {
+  const handleDisconnect = useCallback(async () => {
+    try {
+      await disconnectWallet();
+      router.push('/');
+    } catch (error) {
+      console.error('Disconnect error:', error);
+    }
+  }, [disconnectWallet, router]);
+
+  // Loading state
+  if (isAuthLoading) {
     return (
       <Button 
         variant={variant} 
@@ -117,7 +151,8 @@ export function ConnectButton({
     );
   }
 
-  if (isConnected && address) {
+  // Connected state with dropdown
+  if (isConnected && account && showDropdown) {
     return (
       <>
         <DropdownMenu>
@@ -127,23 +162,23 @@ export function ConnectButton({
               size={size}
               className={className}
             >
-              <Wallet className="mr-2 h-5 w-5" />
-              {formatAddress(address)}
+              {showIcon && <Wallet className="mr-2 h-5 w-5" />}
+              {formattedAddress}
               <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               Connected Account
-              {userInfo?.email && (
+              {userData?.email && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {userInfo.email}
+                  {userData.email}
                 </p>
               )}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={copyAddress} className="cursor-pointer">
-              <span className="w-full font-mono text-xs">{address}</span>
+              <span className="w-full font-mono text-xs">{account}</span>
               <Copy className="ml-2 h-4 w-4" />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -159,25 +194,61 @@ export function ConnectButton({
                 </span>
               </span>
             </DropdownMenuItem>
+            {userData?.tradingLevel && (
+              <DropdownMenuItem className="font-mono text-xs">
+                <span className="flex justify-between w-full">
+                  <span>Level:</span>
+                  <span className="capitalize">{userData.tradingLevel}</span>
+                </span>
+              </DropdownMenuItem>
+            )}
+            {userData?.accountType && (
+              <DropdownMenuItem className="font-mono text-xs">
+                <span className="flex justify-between w-full">
+                  <span>Account:</span>
+                  <span className="capitalize">{userData.accountType}</span>
+                </span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-red-600 focus:text-red-600 cursor-pointer"
-              onClick={disconnectWallet}
+              onClick={handleDisconnect}
             >
+              <LogOut className="mr-2 h-4 w-4" />
               Disconnect
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {error && (
+        {authError && (
           <Alert variant="destructive" className="mt-2">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{authError}</AlertDescription>
           </Alert>
         )}
       </>
     );
   }
 
+  // Connected state without dropdown (for mobile menu)
+  if (isConnected && account && !showDropdown) {
+    return (
+      <DropdownMenuItem className="font-mono text-xs">
+        <span className="flex justify-between w-full">
+          <span>Balance:</span>
+          <span>
+            {isLoadingBalance ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              `${balance} ETH`
+            )}
+          </span>
+        </span>
+      </DropdownMenuItem>
+    );
+  }
+
+  // Disconnected state
   return (
     <>
       <Button 
@@ -186,7 +257,7 @@ export function ConnectButton({
         className={`${className} min-w-[160px]`}
         onClick={handleConnect}
       >
-        <Wallet className="mr-2 h-4 w-4" />
+        {showIcon && <Wallet className="mr-2 h-4 w-4" />}
         {label}
       </Button>
 
@@ -195,9 +266,9 @@ export function ConnectButton({
         onOpenChange={setShowModal}
       />
 
-      {error && (
+      {authError && (
         <Alert variant="destructive" className="mt-2">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{authError}</AlertDescription>
         </Alert>
       )}
     </>

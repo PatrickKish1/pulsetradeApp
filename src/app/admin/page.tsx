@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import useAuth from '@/src/lib/hooks/useAuth';
+import Image from 'next/image';
+
 
 
 interface ManagedAccount {
@@ -111,7 +113,17 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
-        <p>Loading...</p>
+        <div className="flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="Loading"
+            priority={true}
+            width={128}
+            height={128}
+            className="animate-bounce rounded-full bg-fuchsia-700"
+          />
+          <span className="text-sm text-gray-500">Loading...</span>
+        </div>
       </div>
     );
   }

@@ -3,16 +3,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, onSnapshot, getDocs, orderBy, limit, startAfter } from 'firebase/firestore';
+import { RefreshCw } from 'lucide-react';
+import Image from 'next/image';
 import ChatList from '@/src/components/chats/ChatList';
 import CreateChat from '@/src/components/chats/CreateChat';
 import Header from '@/src/components/Header';
-import { AlertDialogHeader } from '@/src/components/ui/alert-dialog';
 import { Button } from '@/src/components/ui/button';
 import useAuth from '@/src/lib/hooks/useAuth';
 import { Chat } from '@/src/lib/utils';
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from '@radix-ui/react-alert-dialog';
 import db from '../../../firebase.config';
-import Image from 'next/image';
 
 const CHATS_PER_PAGE = 20;
 
@@ -21,21 +20,21 @@ export default function ChatsPage() {
   const { address, isConnected, isLoading: authLoading } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreateChat, setShowCreateChat] = useState(false);
   const [showGroupChat, setShowGroupChat] = useState(false);
-  const [showError, setShowError] = useState(false);
   const [lastChatRef, setLastChatRef] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadInitialChats = useCallback(async () => {
+  const loadChats = useCallback(async (isRefresh = false) => {
     if (!address || !db) {
       setLoading(false);
       return;
     }
 
     try {
+      if (isRefresh) setIsRefreshing(true);
       const chatsRef = collection(db, 'chats');
       const q = query(
         chatsRef,
@@ -53,13 +52,12 @@ export default function ChatsPage() {
       setChats(chatList);
       setLastChatRef(snapshot.docs[snapshot.docs.length - 1]);
       setHasMore(snapshot.docs.length === CHATS_PER_PAGE);
-      setLoading(false);
       updateTitleAndNotifications(chatList);
     } catch (err) {
-      console.error("Error loading initial chats:", err);
-      setError("Failed to load chats. Please try again.");
+      console.error("Error loading chats:", err);
+    } finally {
       setLoading(false);
-      setShowError(true);
+      setIsRefreshing(false);
     }
   }, [address]);
 
@@ -90,10 +88,6 @@ export default function ChatsPage() {
       } else {
         setHasMore(false);
       }
-    } catch (err) {
-      console.error("Error loading more chats:", err);
-      setError("Failed to load more chats. Please try again.");
-      setShowError(true);
     } finally {
       setIsLoadingMore(false);
     }
@@ -125,7 +119,7 @@ export default function ChatsPage() {
     }
   }, [address]);
 
-  // Listen only for recent chat updates
+  // Real-time updates listener
   useEffect(() => {
     if (!address || !db || authLoading) return;
 
@@ -137,36 +131,26 @@ export default function ChatsPage() {
       limit(1)
     );
 
-    const unsubscribe = onSnapshot(
-      recentChatsQuery,
-      {
-        next: (snapshot) => {
-          if (!snapshot.empty) {
-            const updatedChat = {
-              id: snapshot.docs[0].id,
-              ...snapshot.docs[0].data(),
-            } as Chat;
+    const unsubscribe = onSnapshot(recentChatsQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const updatedChat = {
+          id: snapshot.docs[0].id,
+          ...snapshot.docs[0].data(),
+        } as Chat;
 
-            setChats(prev => {
-              const existingIndex = prev.findIndex(c => c.id === updatedChat.id);
-              if (existingIndex === -1) {
-                return [updatedChat, ...prev];
-              }
-              const newChats = [...prev];
-              newChats[existingIndex] = updatedChat;
-              return newChats.sort((a, b) => b.updatedAt - a.updatedAt);
-            });
-
-            updateTitleAndNotifications(chats);
+        setChats(prev => {
+          const existingIndex = prev.findIndex(c => c.id === updatedChat.id);
+          if (existingIndex === -1) {
+            return [updatedChat, ...prev];
           }
-        },
-        error: (err) => {
-          console.error("Error in chat listener:", err);
-          setError("Failed to sync chat updates. Please refresh the page.");
-          setShowError(true);
-        }
+          const newChats = [...prev];
+          newChats[existingIndex] = updatedChat;
+          return newChats.sort((a, b) => b.updatedAt - a.updatedAt);
+        });
+
+        updateTitleAndNotifications(chats);
       }
-    );
+    });
 
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -180,9 +164,9 @@ export default function ChatsPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      loadInitialChats();
+      loadChats();
     }
-  }, [loadInitialChats, authLoading]);
+  }, [loadChats, authLoading]);
 
   const handleChatSelect = useCallback((chat: Chat) => {
     router.push(`/chat/${chat.id}`);
@@ -194,26 +178,20 @@ export default function ChatsPage() {
     router.push(`/chat/${chatId}`);
   }, [router]);
 
-  const handleRetry = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    setShowError(false);
-    loadInitialChats();
-  }, [loadInitialChats]);
-
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex justify-center items-center h-64">
-            <Image
-              src="/logo.png"
-              alt="Loading"
-              width={48}
-              height={48}
-              className="animate-pulse"
-            />
+          <Image
+            src="/logo.png"
+            alt="Loading"
+            priority={true}
+            width={128}
+            height={128}
+            className="animate-pulse rounded-full bg-fuchsia-700"
+          />
           </div>
         </div>
       </div>
@@ -239,10 +217,21 @@ export default function ChatsPage() {
       <Header />
       <main className="flex-1 container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Messages
-            {loading && <span className="ml-2 text-sm text-gray-500">(Updating...)</span>}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+            {(loading || isRefreshing) && (
+              <span className="text-sm text-gray-500">(Updating...)</span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1"
+              onClick={() => loadChats(true)}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <div className="flex space-x-4">
             <Button
               onClick={() => {
@@ -315,25 +304,6 @@ export default function ChatsPage() {
             </div>
           </div>
         )}
-
-        <AlertDialog open={showError} onOpenChange={setShowError}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Error</AlertDialogTitle>
-              <AlertDialogDescription>
-                {error}
-                <div className="mt-4">
-                  <Button onClick={handleRetry} className="mr-2">
-                    Retry
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowError(false)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-          </AlertDialogContent>
-        </AlertDialog>
       </main>
     </div>
   );

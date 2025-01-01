@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PULSE TRADE AI",
   description: "The OP trading ai platform",
-  icons: '/logo.png'
+  icons: '/next.svg'
 };
 
 interface RootLayoutProps {
@@ -41,13 +41,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
         >
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center">
-              <div className="flex justify-center items-center h-64">
+              <div className="flex animate-bounce justify-center items-center h-64">
                 <Image
                   src="/logo.png"
                   alt="Loading"
-                  width={48}
-                  height={48}
-                  className="animate-pulse"
+                  priority={true}
+                  width={128}
+                  height={128}
+                  className="rounded-full bg-fuchsia-700"
                 />
               </div>
             </div>

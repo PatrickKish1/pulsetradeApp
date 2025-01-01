@@ -13,6 +13,7 @@ export function AuthLoading({ message = 'Loading...' }: AuthLoadingProps) {
           <Image
             src="/logo.png"
             alt="Loading"
+            priority={true}
             width={48}
             height={48}
             className="animate-pulse"

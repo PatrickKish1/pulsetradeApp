@@ -268,9 +268,10 @@ export default function ChatPage() {
                 <Image
                   src="/logo.png"
                   alt="Loading"
-                  width={48}
-                  height={48}
-                  className="animate-pulse"
+                  priority={true}
+                  width={128}
+                  height={128}
+                  className="animate-pulse rounded-full bg-fuchsia-700"
                 />
               </div>
             ) : messages.length === 0 && showWelcome ? (

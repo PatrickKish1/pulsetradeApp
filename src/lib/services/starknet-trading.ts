@@ -1,65 +1,81 @@
-import { Contract, Provider, Account, stark, constants } from 'starknet';
+import { Contract, Provider, Account, constants, CallData, hash, num, RpcProvider } from 'starknet';
 import { toast } from 'react-hot-toast';
 import { STARKNET_CONTRACT_ABI } from './abi-config';
 
-// Types
-interface TrustAgreement {
+// Configuration Types
+interface StarkNetConfig {
+  readonly contractAddress: string;
+  readonly providerUrl: string;
+}
+
+// Domain Types
+export interface TrustAgreement {
   user: string;
   admin: string;
   agreementTerms: string;
   isValid: boolean;
 }
 
-interface AdminStats {
-  trustScore: number;
-  status: number;
-  totalManagedAccounts: number;
-  successRate: number;
+export interface AdminStats {
+  trustScore: string;
+  status: string;
+  totalManagedAccounts: string;
+  successRate: string;
 }
 
-interface PropPool {
+export interface PropPool {
   id: string;
-  totalAmount: number;
+  totalAmount: string;
   active: boolean;
   params: string;
 }
 
-interface PlatformStats {
-  totalUsers: number;
-  totalAdmins: number;
-  totalTrades: number;
-  activePoolsCount: number;
+export interface PlatformStats {
+  totalUsers: string;
+  totalAdmins: string;
+  totalTrades: string;
+  activePoolsCount: string;
 }
 
-interface VoteSubmission {
+export interface VoteSubmission {
   admin: string;
-  voteType: number;  // 0 for positive, 1 for negative
-  voteWeight: number;
+  voteType: number;
+  voteWeight: string;
 }
 
-interface ContractEvent {
+export interface ContractEvent {
   data: string[];
   keys: string[];
   transactionHash: string;
 }
 
+interface ContractResponse {
+  [key: string]: { toString: () => string };
+}
+
+// Static configuration
+const STARKNET_CONFIG: StarkNetConfig = {
+  contractAddress: '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7', // Mainnet ETH contract
+  providerUrl: 'https://starknet-mainnet.public.blastapi.io'
+} as const;
+
 export class StarkNetTradingService {
   private contract: Contract | null = null;
-  private contractAddress: string;
-  private provider: Provider;
+  private readonly provider: Provider;
 
-  constructor(contractAddress: string, providerUrl: string) {
-    this.contractAddress = contractAddress;
-    
-    // Use browser's URL API for validation
-    const parsedUrl = new URL(providerUrl);
-    this.provider = new Provider({
-      nodeUrl: parsedUrl.toString()
+  constructor() {
+    this.provider = new RpcProvider({
+      nodeUrl: STARKNET_CONFIG.providerUrl,
+      chainId: constants.StarknetChainId.SN_MAIN
     });
   }
 
   public async initializeContract(accountAddress: string): Promise<void> {
     try {
+      if (!this.isValidAddress(accountAddress)) {
+        throw new Error('Invalid account address format');
+      }
+
       const account = new Account(
         this.provider,
         accountAddress,
@@ -68,7 +84,7 @@ export class StarkNetTradingService {
 
       this.contract = new Contract(
         STARKNET_CONTRACT_ABI,
-        this.contractAddress,
+        STARKNET_CONFIG.contractAddress,
         account
       );
 
@@ -80,26 +96,29 @@ export class StarkNetTradingService {
     }
   }
 
-  // Identity Management
   public async registerIdentity(
     credentials: string,
     proof: string
   ): Promise<boolean> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const tx = await this.contract.register_identity(
-        stark.makeAddress(credentials),
-        stark.makeAddress(proof)
+      const calldata = CallData.compile({
+        credentials: this.normalizeAndHashInput(credentials),
+        proof: this.normalizeAndHashInput(proof)
+      });
+
+      const { transaction_hash } = await this.contract!.invoke(
+        'register_identity',
+        calldata
       );
-      await this.provider.waitForTransaction(tx.transaction_hash);
 
+      await this.provider.waitForTransaction(transaction_hash);
       toast.success('Identity registered successfully');
       return true;
     } catch (error) {
-      console.error('Failed to register identity:', error);
-      toast.error('Failed to register identity');
-      throw error;
+      this.handleError('Failed to register identity', error);
+      return false;
     }
   }
 
@@ -109,21 +128,25 @@ export class StarkNetTradingService {
     signature: string
   ): Promise<boolean> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const tx = await this.contract.create_trust_agreement(
+      const calldata = CallData.compile({
         admin,
-        stark.makeAddress(agreementTerms),
-        stark.makeAddress(signature)
-      );
-      await this.provider.waitForTransaction(tx.transaction_hash);
+        terms: this.normalizeAndHashInput(agreementTerms),
+        signature: this.normalizeAndHashInput(signature)
+      });
 
+      const { transaction_hash } = await this.contract!.invoke(
+        'create_trust_agreement',
+        calldata
+      );
+
+      await this.provider.waitForTransaction(transaction_hash);
       toast.success('Trust agreement created successfully');
       return true;
     } catch (error) {
-      console.error('Failed to create trust agreement:', error);
-      toast.error('Failed to create trust agreement');
-      throw error;
+      this.handleError('Failed to create trust agreement', error);
+      return false;
     }
   }
 
@@ -132,35 +155,41 @@ export class StarkNetTradingService {
     admin: string
   ): Promise<boolean> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const result = await this.contract.verify_trust_agreement(user, admin);
-      return result.toNumber() === 1;
+      const result = await this.contract!.call('verify_trust_agreement', [
+        user,
+        admin
+      ]);
+
+      return result.toString() === '1';
     } catch (error) {
-      console.error('Failed to verify trust agreement:', error);
-      toast.error('Failed to verify trust agreement');
-      throw error;
+      this.handleError('Failed to verify trust agreement', error);
+      return false;
     }
   }
 
-  // Governance Functions
   public async submitVote(params: VoteSubmission): Promise<boolean> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const tx = await this.contract.submit_vote(
-        params.admin,
-        params.voteType,
-        params.voteWeight
+      const calldata = CallData.compile({
+        admin: params.admin,
+        vote_type: params.voteType,
+        vote_weight: params.voteWeight
+      });
+
+      const { transaction_hash } = await this.contract!.invoke(
+        'submit_vote',
+        calldata
       );
-      await this.provider.waitForTransaction(tx.transaction_hash);
 
+      await this.provider.waitForTransaction(transaction_hash);
       toast.success('Vote submitted successfully');
       return true;
     } catch (error) {
-      console.error('Failed to submit vote:', error);
-      toast.error('Failed to submit vote');
-      throw error;
+      this.handleError('Failed to submit vote', error);
+      return false;
     }
   }
 
@@ -169,196 +198,137 @@ export class StarkNetTradingService {
     externalData: string
   ): Promise<boolean> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const tx = await this.contract.validate_votes(
+      const calldata = CallData.compile({
         admin,
-        stark.makeAddress(externalData)
-      );
-      await this.provider.waitForTransaction(tx.transaction_hash);
+        external_data: this.normalizeAndHashInput(externalData)
+      });
 
+      const { transaction_hash } = await this.contract!.invoke(
+        'validate_votes',
+        calldata
+      );
+
+      await this.provider.waitForTransaction(transaction_hash);
       toast.success('Votes validated successfully');
       return true;
     } catch (error) {
-      console.error('Failed to validate votes:', error);
-      toast.error('Failed to validate votes');
-      throw error;
+      this.handleError('Failed to validate votes', error);
+      return false;
     }
   }
 
-  public async checkAdminStatus(admin: string): Promise<number> {
+  public async checkAdminStatus(admin: string): Promise<bigint> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const status = await this.contract.check_admin_status(admin);
-      return status.toNumber();
+      const result = await this.contract!.call('check_admin_status', [admin]);
+      return BigInt(result.toString());
     } catch (error) {
-      console.error('Failed to check admin status:', error);
-      toast.error('Failed to check admin status');
-      throw error;
+      this.handleError('Failed to check admin status', error);
+      return BigInt(0);
     }
   }
 
-  // Prop Firm Management Functions
-  public async createPropPool(
-    initialAmount: number,
-    poolParams: string
-  ): Promise<string> {
-    try {
-      if (!this.contract) throw new Error('Contract not initialized');
-
-      const tx = await this.contract.create_prop_pool(
-        initialAmount,
-        stark.makeAddress(poolParams)
-      );
-      await this.provider.waitForTransaction(tx.transaction_hash);
-
-      toast.success('Prop pool created successfully');
-      return tx.transaction_hash;
-    } catch (error) {
-      console.error('Failed to create prop pool:', error);
-      toast.error('Failed to create prop pool');
-      throw error;
-    }
-  }
-
-  public async donateToPool(
-    poolId: string,
-    amount: number
-  ): Promise<boolean> {
-    try {
-      if (!this.contract) throw new Error('Contract not initialized');
-
-      const tx = await this.contract.donate_to_pool(poolId, amount);
-      await this.provider.waitForTransaction(tx.transaction_hash);
-
-      toast.success('Donation successful');
-      return true;
-    } catch (error) {
-      console.error('Failed to donate to pool:', error);
-      toast.error('Failed to donate to pool');
-      throw error;
-    }
-  }
-
-  public async allocateToBeginner(
-    beginner: string,
-    poolId: string,
-    amount: number
-  ): Promise<boolean> {
-    try {
-      if (!this.contract) throw new Error('Contract not initialized');
-
-      const tx = await this.contract.allocate_to_beginner(
-        beginner,
-        poolId,
-        amount
-      );
-      await this.provider.waitForTransaction(tx.transaction_hash);
-
-      toast.success('Funds allocated successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to allocate funds:', error);
-      toast.error('Failed to allocate funds');
-      throw error;
-    }
-  }
-
-  // Platform Statistics Functions
   public async getPlatformStats(): Promise<PlatformStats> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const stats = await this.contract.get_platform_states();
+      const result = (await this.contract!.call('get_platform_stats')) as ContractResponse[];
+      
       return {
-        totalUsers: stats.total_users.toNumber(),
-        totalAdmins: stats.total_admins.toNumber(),
-        totalTrades: stats.total_trades.toNumber(),
-        activePoolsCount: stats.active_pools.toNumber()
+        totalUsers: result[0].toString(),
+        totalAdmins: result[1].toString(),
+        totalTrades: result[2].toString(),
+        activePoolsCount: result[3].toString()
       };
     } catch (error) {
-      console.error('Failed to get platform stats:', error);
-      toast.error('Failed to fetch platform statistics');
-      throw error;
+      this.handleError('Failed to get platform stats', error);
+      return {
+        totalUsers: '0',
+        totalAdmins: '0',
+        totalTrades: '0',
+        activePoolsCount: '0'
+      };
     }
   }
 
   public async getAdminPerformance(admin: string): Promise<AdminStats> {
     try {
-      if (!this.contract) throw new Error('Contract not initialized');
+      this.ensureContractInitialized();
 
-      const performance = await this.contract.get_admin_performance(admin);
+      const result = (await this.contract!.call('get_admin_performance', [admin])) as ContractResponse[];
+      
       return {
-        trustScore: performance.trust_score.toNumber(),
-        status: performance.status.toNumber(),
-        totalManagedAccounts: performance.total_managed_accounts.toNumber(),
-        successRate: performance.success_rate.toNumber()
+        trustScore: result[0].toString(),
+        status: result[1].toString(),
+        totalManagedAccounts: result[2].toString(),
+        successRate: result[3].toString()
       };
     } catch (error) {
-      console.error('Failed to get admin performance:', error);
-      toast.error('Failed to fetch admin performance');
-      throw error;
+      this.handleError('Failed to get admin performance', error);
+      return {
+        trustScore: '0',
+        status: '0',
+        totalManagedAccounts: '0',
+        successRate: '0'
+      };
     }
   }
 
-  // Event Listeners
   public onTrustAgreementCreated(
     callback: (agreement: TrustAgreement) => void
   ): void {
-    if (!this.contract) throw new Error('Contract not initialized');
+    this.ensureContractInitialized();
 
-    this.contract.on('TrustAgreementCreated', 
+    this.contract!.on('TrustAgreementCreated', 
       (user: string, admin: string, terms: string) => {
         callback({
           user,
           admin,
           agreementTerms: terms,
-          isValid: true,
+          isValid: true
         });
       }
     );
   }
 
-  // Utility Functions
-  private async waitForTransaction(hash: string): Promise<void> {
-    try {
-      await this.provider.waitForTransaction(hash);
-    } catch (error) {
-      console.error('Transaction failed:', error);
-      throw error;
-    }
-  }
-
-  // Cleanup
   public removeAllListeners(): void {
     if (this.contract) {
       this.contract.removeAllListeners();
     }
   }
 
-  // Error Handling Utility
-  private handleError(error: any, message: string): never {
+  // Private utility methods
+  private ensureContractInitialized(): void {
+    if (!this.contract) {
+      throw new Error('Contract not initialized. Call initializeContract first.');
+    }
+  }
+
+  private isValidAddress(address: string): boolean {
+    return /^0x[0-9a-fA-F]{1,64}$/.test(address);
+  }
+
+  private normalizeAndHashInput(input: string): string {
+    const normalized = input.toLowerCase().trim();
+    // Using zero as the second argument for computePedersenHash as per StarkNet requirements
+    const hashedValue = hash.computePedersenHash(normalized, '0');
+    return num.toHex(hashedValue);
+  }
+
+  private handleError(message: string, error: unknown): void {
     console.error(`${message}:`, error);
     toast.error(message);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(message);
   }
 }
 
-// Factory function to create service instance
-export const createStarkNetTradingService = (
-  contractAddress: string,
-  providerUrl: string
-): StarkNetTradingService => {
-  return new StarkNetTradingService(contractAddress, providerUrl);
-};
-
-// Export types
-export type {
-  TrustAgreement,
-  AdminStats,
-  PropPool,
-  PlatformStats,
-  VoteSubmission,
-  ContractEvent
+// Factory function
+export const createStarkNetTradingService = (): StarkNetTradingService => {
+  return new StarkNetTradingService();
 };

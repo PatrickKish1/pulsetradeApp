@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Menu, X, ChevronDown, Copy, LogOut } from 'lucide-react';
+import { Menu, ChevronDown, Copy, LogOut } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
 import { 
   DropdownMenu, 
@@ -12,67 +13,75 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-  DropdownMenuGroup,
-  DropdownMenuSub,
-  DropdownMenuPortal,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from './ui/dropdown-menu';
 import { toast } from '../hooks/use-toast';
 import { useAuth } from '../lib/hooks/useAuth';
+import { useAuthStore } from '../lib/stores/authStore';
 import { cn } from '../lib/utils';
 import MaxWidthWrapper from './MaxWidthWrapper';
 import { ConnectButton } from './ConnectButton';
 
-const navLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+  requiresAuth?: boolean;
+  requiresOnboarding?: boolean;
+}
+
+const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
   { href: '/tutorials', label: 'Tutorials' },
-  { href: '/chats', label: 'Chats' },
-  { href: '/ai-chats', label: 'AI Chat' },
-] as const;
-
-type NavLink = typeof navLinks[number];
+  { href: '/chats', label: 'Chats', requiresAuth: true, requiresOnboarding: true },
+  { href: '/ai-chats', label: 'AI Chat', requiresAuth: true, requiresOnboarding: true },
+  { href: '/trading', label: 'Trading', requiresAuth: true, requiresOnboarding: true },
+  { href: '/prop-firm', label: 'Prop Firm', requiresAuth: true, requiresOnboarding: true },
+  { href: '/admin', label: 'Admin', requiresAuth: true, requiresOnboarding: true },
+];
 
 export default function Header() {
-  const [balance, setBalance] = useState<string>('0.0000');
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const { isConnected, address, disconnectWallet, web3 } = useAuth();
-
-  // Handle balance fetching
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (web3 && address && isConnected) {
-        try {
-          setIsLoadingBalance(true);
-          const balanceWei = await web3.eth.getBalance(address);
-          const balanceEth = web3.utils.fromWei(balanceWei, 'ether');
-          setBalance(parseFloat(balanceEth).toFixed(4));
-        } catch (error) {
-          console.error('Error fetching balance:', error);
-          setBalance('0.0000');
-        } finally {
-          setIsLoadingBalance(false);
-        }
-      }
-    };
-
-    fetchBalance();
-  }, [web3, address, isConnected]);
-
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
+  const router = useRouter();
+  const pathname = usePathname();
+  const { address, isConnected, disconnectWallet } = useAuth();
+  const { userData } = useAuthStore();
 
   const copyAddress = async () => {
     if (address) {
-      await navigator.clipboard.writeText(address);
-      toast({
-        title: "Address copied",
-        description: "Wallet address has been copied to clipboard",
-      });
+      try {
+        await navigator.clipboard.writeText(address);
+        toast({
+          title: "Address copied",
+          description: "Wallet address has been copied to clipboard",
+        });
+      } catch (error) {
+        console.error('Failed to copy address:', error);
+        toast({
+          title: "Error",
+          description: "Failed to copy address to clipboard",
+          variant: "destructive",
+        });
+      }
     }
   };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnectWallet();
+      router.push('/');
+    } catch (error) {
+      console.error('Disconnect error:', error);
+    }
+  };
+
+  // Memoized filtered navigation links
+  const filteredNavLinks = useMemo(() => 
+    navLinks.filter(link => {
+      if (link.requiresAuth && !isConnected) return false;
+      if (link.requiresOnboarding && !userData?.isOnboardingComplete) return false;
+      return true;
+    }),
+    [isConnected, userData?.isOnboardingComplete]
+  );
 
   const renderMobileMenu = () => (
     <DropdownMenu>
@@ -86,18 +95,19 @@ export default function Header() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuGroup>
-          {navLinks.map((link) => (
-            <DropdownMenuItem key={link.href} asChild>
-              <Link
-                href={link.href}
-                className="w-full text-gray-700 hover:text-purple-600"
-              >
-                {link.label}
-              </Link>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
+        {filteredNavLinks.map((link) => (
+          <DropdownMenuItem key={link.href} asChild>
+            <Link
+              href={link.href}
+              className={cn(
+                "w-full text-gray-700 hover:text-purple-600",
+                pathname === link.href && "text-purple-600 font-medium"
+              )}
+            >
+              {link.label}
+            </Link>
+          </DropdownMenuItem>
+        ))}
         
         <DropdownMenuSeparator />
         
@@ -111,16 +121,18 @@ export default function Header() {
                 onClick={copyAddress}
               />
             </DropdownMenuItem>
-            <DropdownMenuItem className="flex justify-between font-mono text-xs">
-              <span>Balance:</span>
-              <span>
-                {isLoadingBalance ? 'Loading...' : `${balance} ETH`}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <ConnectButton variant="ghost" className="w-full" showDropdown={false} />
+            {userData?.tradingLevel && (
+              <DropdownMenuItem className="font-mono text-xs">
+                <span className="flex justify-between w-full">
+                  <span>Level:</span>
+                  <span className="capitalize">{userData.tradingLevel}</span>
+                </span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem 
               className="text-red-600 cursor-pointer"
-              onClick={disconnectWallet}
+              onClick={handleDisconnect}
             >
               <LogOut className="h-4 w-4 mr-2" />
               Disconnect
@@ -137,50 +149,8 @@ export default function Header() {
 
   const renderDesktopWallet = () => {
     if (isConnected && address) {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="flex items-center space-x-2"
-            >
-              <span>{formatAddress(address)}</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel>Wallet Details</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex justify-between">
-              <span className="font-mono text-xs truncate">{address}</span>
-              <Copy 
-                className="h-4 w-4 ml-2 cursor-pointer" 
-                onClick={copyAddress}
-              />
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex justify-between font-mono text-xs">
-              <span>Balance:</span>
-              <span>
-                {isLoadingBalance ? (
-                  <span className="flex items-center">Loading...</span>
-                ) : (
-                  `${balance} ETH`
-                )}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              className="text-red-600 cursor-pointer"
-              onClick={disconnectWallet}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Disconnect
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+      return <ConnectButton variant="outline" className="hidden lg:flex" />;
     }
-
     return <ConnectButton variant="outline" />;
   };
 
@@ -188,7 +158,10 @@ export default function Header() {
     <Link
       key={link.href}
       href={link.href}
-      className="relative px-2 lg:px-4 py-2 text-sm lg:text-base font-medium text-gray-700 rounded-md hover:text-purple-600 hover:bg-gray-200 transition-all duration-200 group whitespace-nowrap"
+      className={cn(
+        "relative px-2 lg:px-4 py-2 text-sm lg:text-base font-medium text-gray-700 rounded-md hover:text-purple-600 hover:bg-gray-200 transition-all duration-200 group whitespace-nowrap",
+        pathname === link.href && "text-purple-600"
+      )}
     >
       {link.label}
       <span className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-purple-500/0 via-purple-500/70 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -204,10 +177,10 @@ export default function Header() {
             <Image 
               src="/logo.png" 
               alt="Logo" 
+              priority={true}
               width={50} 
               height={50} 
               className="h-8 w-8 md:h-10 md:w-10"
-              priority
             />
             <span className="text-lg md:text-xl font-bold text-purple-600">PULSE TRADE</span>
           </Link>
@@ -215,7 +188,7 @@ export default function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1 flex-grow justify-center max-w-2xl mx-4">
             <div className="rounded-md backdrop-blur-md bg-white/30 px-2 py-1.5 shadow-sm border border-white/50 flex flex-wrap justify-center">
-              {navLinks.map(renderNavLink)}
+              {filteredNavLinks.map(renderNavLink)}
             </div>
           </nav>
 

@@ -112,9 +112,10 @@ export default function AIChatsPage() {
                 <Image
                   src="/logo.png"
                   alt="Loading"
-                  width={48}
-                  height={48}
-                  className="animate-pulse"
+                  priority={true}
+                  width={128}
+                  height={128}
+                  className="animate-pulse rounded-full bg-fuchsia-700"
                 />
               </div>
             ) : chats.length > 0 ? (

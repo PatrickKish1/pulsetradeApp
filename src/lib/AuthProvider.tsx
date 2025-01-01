@@ -1,10 +1,14 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from './hooks/useAuth';
 import Web3 from 'web3';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import Image from 'next/image';
+import { doc, getDoc } from 'firebase/firestore';
+import db from '../../firebase.config';
+import { useAuthStore } from './stores/authStore';
 
 interface Web3ContextType {
   web3: Web3 | null;
@@ -14,6 +18,7 @@ interface AuthContextType {
   isInitialized: boolean;
   web3Context: Web3ContextType;
   error: string | null;
+  checkUserOnboarding: (address: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,10 +27,11 @@ const AuthContext = createContext<AuthContextType>({
     web3: null,
   },
   error: null,
+  checkUserOnboarding: async () => false,
 });
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Auth hook (must be first)
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const { 
     isConnected,
     address,
@@ -34,12 +40,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     disconnectWallet
   } = useAuth();
 
-  // State declarations (group all useState together)
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoized values (group all useMemo together)
+  const { 
+    setUserData,
+    isInitialized,
+    initialize,
+    userData
+  } = useAuthStore();
+
+  // Memoized checkUserOnboarding to prevent recreating on every render
+  const checkUserOnboarding = useMemo(() => async (address: string): Promise<boolean> => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', address.toLowerCase()));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const isOnboardingComplete = userData.tradingLevel && userData.accountType;
+        
+        setUserData({
+          address: address.toLowerCase(),
+          tradingLevel: userData.tradingLevel || null,
+          accountType: userData.accountType || null,
+          isOnboardingComplete: !!isOnboardingComplete,
+          lastSeen: userData.lastSeen,
+          createdAt: userData.createdAt,
+          email: userData.email
+        });
+
+        return !!isOnboardingComplete;
+      }
+      
+      setUserData({
+        address: address.toLowerCase(),
+        isOnboardingComplete: false,
+        tradingLevel: null,
+        accountType: null
+      });
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking user onboarding status:', error);
+      setError('Failed to verify user status');
+      return false;
+    }
+  }, [setUserData]);
+
   const web3Context = useMemo(() => ({
     web3
   }), [web3]);
@@ -48,11 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isInitialized,
     web3Context,
     error,
-  }), [isInitialized, web3Context, error]);
+    checkUserOnboarding
+  }), [isInitialized, web3Context, error, checkUserOnboarding]);
 
-  // Side effects (group all useEffect together)
   useEffect(() => {
     let mounted = true;
+    let cleanup: (() => void) | undefined;
 
     const initializeAuth = async () => {
       if (!mounted) return;
@@ -70,19 +118,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error('No accounts found');
           }
 
-          // Set up account change listener
-          const handleAccountsChanged = (accounts: string[]) => {
+          const hasCompletedOnboarding = await checkUserOnboarding(address);
+          
+          // Route based on onboarding status  && router.pathname !== '/'
+          if (!hasCompletedOnboarding) {
+            router.push('/');
+          }
+
+          const handleAccountsChanged = async (accounts: string[]) => {
             if (!accounts.length) {
               disconnectWallet();
+            } else if (mounted) {
+              await checkUserOnboarding(accounts[0]);
             }
           };
 
           window.ethereum.on('accountsChanged', handleAccountsChanged);
-
-          return () => {
-            if (window.ethereum) {
-              window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-            }
+          cleanup = () => {
+            window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
           };
         }
       } catch (error) {
@@ -93,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (mounted) {
-          setIsInitialized(true);
+          initialize();
           setIsInitializing(false);
         }
       }
@@ -103,14 +156,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      cleanup?.();
     };
-  }, [isConnected, address, disconnectWallet]);
+  }, [isConnected, address, disconnectWallet, initialize, router, checkUserOnboarding]);
 
+  // Simplified storage event handler
   useEffect(() => {
-    setError(authError);
-  }, [authError]);
+    const handleStorageChange = () => {
+      const persistedAuth = localStorage.getItem('web3-auth-storage');
+      if (persistedAuth) {
+        try {
+          const { state } = JSON.parse(persistedAuth);
+          if (state.isConnected && state.account && !isConnected) {
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Error parsing persisted auth:', error);
+        }
+      }
+    };
 
-  // Early return for loading state
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isConnected]);
+
+  // Sync auth error only when it changes
+  useEffect(() => {
+    if (authError !== error) {
+      setError(authError);
+    }
+  }, [authError, error]);
+
   if (isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -118,9 +194,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           <Image
             src="/logo.png"
             alt="Loading"
-            width={48}
-            height={48}
-            className="animate-pulse"
+            priority={true}
+            width={128}
+            height={128}
+            className="animate-pulse rounded-full bg-fuchsia-700"
           />
         </div>
       </div>

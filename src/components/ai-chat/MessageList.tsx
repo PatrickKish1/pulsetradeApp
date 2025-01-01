@@ -49,6 +49,7 @@ export const MessageList = ({ messages, loading }: MessageListProps) => {
           <Image
             src="/logo.png"
             alt="Loading"
+            priority={true}
             width={32}
             height={32}
             className="animate-pulse"
