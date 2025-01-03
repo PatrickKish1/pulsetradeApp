@@ -133,9 +133,10 @@ export default function TradingDashboard() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 mb-32">
+      <Header />
       <div className="flex justify-between items-center">
-        <div>
+        <div className='mt-10'>
           <h1 className="text-2xl font-bold">Trading Dashboard</h1>
           <p className="text-gray-500">Real-time overview of your trading activity</p>
         </div>

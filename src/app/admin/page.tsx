@@ -122,7 +122,6 @@ export default function AdminDashboard() {
             height={128}
             className="animate-bounce rounded-full bg-fuchsia-700"
           />
-          <span className="text-sm text-gray-500">Loading...</span>
         </div>
       </div>
     );
@@ -144,12 +143,13 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mb-32">
       {/* Header */}
+      <Header />
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold mt-12 mb-5">Admin Dashboard</h1>
         <Link href="/admin/verify">
-          <Button>
+          <Button className='mt-12 mb-5'>
             <Shield className="mr-2 h-4 w-4" />
             Verify New Agreement
           </Button>
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Metrics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-10">
         <Card>
           <CardContent className="p-6">
             <div className="flex justify-between items-start">

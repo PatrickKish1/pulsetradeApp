@@ -3,18 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, doc, limit, startAfter, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, limit, startAfter, getDocs, updateDoc, addDoc } from 'firebase/firestore';
 import Image from 'next/image';
 import AIInputCard from '@/src/components/ai-chat/InputCard';
 import TradeValuesCard from '@/src/components/ai-chat/TradeValues';
-import AIWelcome, { AIWelcomeProps } from '@/src/components/ai-chat/Welcome';
+import AIWelcome from '@/src/components/ai-chat/Welcome';
 import MessageList from '@/src/components/chats/MessageList';
 import Header from '@/src/components/Header';
 import { Button } from '@/src/components/ui/button';
 import { AIMessage, AIChat, TradeValues, AIResponse, ChatMessage } from '@/src/lib/utils';
 import db from '../../../../firebase.config';
 import useAuth from '@/src/lib/hooks/useAuth';
-
 
 const MESSAGES_PER_PAGE = 50;
 const AI_SENDER_ID = 'ai-assistant';
@@ -35,7 +34,6 @@ export default function ChatPage() {
   const [lastMessageRef, setLastMessageRef] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
 
-  // Ensure we always have a valid string for the user's address
   const userAddress = address || DEFAULT_USER_ID;
 
   const convertToChatMessage = (doc: any): ChatMessage => {
@@ -119,10 +117,14 @@ export default function ChatPage() {
       {
         next: (docSnapshot) => {
           if (docSnapshot.exists()) {
-            setChat({
+            const chatData = {
               id: docSnapshot.id,
               ...(docSnapshot.data() as Omit<AIChat, 'id'>)
-            });
+            };
+            setChat(chatData);
+            if (chatData.lastMessage) {
+              setShowWelcome(false);
+            }
           } else {
             router.push('/ai-chats');
           }
@@ -171,8 +173,14 @@ export default function ChatPage() {
   }, [chatId, isConnected, router, userAddress]);
 
   const handleSendMessage = async (message: string) => {
+    if (!chat) {
+      setError('Chat not found');
+      return;
+    }
+
     setSending(true);
     setError(null);
+
     try {
       const tradingTerms = ['take profit', 'stop loss', 'lot size', 'trade signal', 'signal'];
       const hasTradingTerms = tradingTerms.some(term => 
@@ -184,15 +192,27 @@ export default function ChatPage() {
         updatedMessage += " please in your response can you indicate the values for the take profit, stop loss and lot size respectively";
       }
 
-      const url = 'https://tradellm.onrender.com/api/chat'
-      const chatUrl = new URL(url)
+      // First, save the user's message to Firestore
+      const timestamp = Date.now();
+      await addDoc(collection(db, 'ai_chat_messages'), {
+        chatId,
+        content: updatedMessage,
+        isAi: false,
+        timestamp
+      });
+
+      // Create the request payload, always including threadId for existing chats
+      const payload = {
+        message: updatedMessage,
+        threadId: chat.threadId
+      };
+
+      const url = 'https://tradellm.onrender.com/api/chat';
+      const chatUrl = new URL(url);
       const response = await fetch(`${chatUrl}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: updatedMessage,
-          threadId: chat?.threadId 
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -200,7 +220,32 @@ export default function ChatPage() {
       }
 
       const data: AIResponse = await response.json();
+      const aiMessage = data.response.kwargs.content;
       
+      // Save the AI's response to Firestore
+      await addDoc(collection(db, 'ai_chat_messages'), {
+        chatId,
+        content: aiMessage,
+        isAi: true,
+        timestamp: Date.now()
+      });
+
+      // Update the chat's last message
+      await updateDoc(doc(db, 'ai_chats', chatId), {
+        lastMessage: {
+          content: aiMessage,
+          timestamp: Date.now()
+        },
+        updatedAt: Date.now()
+      });
+      
+      // If no threadId exists yet (edge case), update it now
+      if (!chat.threadId && data.threadId) {
+        await updateDoc(doc(db, 'ai_chats', chatId), {
+          threadId: data.threadId
+        });
+      }
+
       if (hasTradingTerms) {
         const tpMatch = data.response.kwargs.content.match(/Take Profit: \$?([\d.]+)/);
         const slMatch = data.response.kwargs.content.match(/Stop Loss: \$?([\d.]+)/);
@@ -268,7 +313,6 @@ export default function ChatPage() {
                 <Image
                   src="/logo.png"
                   alt="Loading"
-                  priority={true}
                   width={128}
                   height={128}
                   className="animate-pulse rounded-full bg-fuchsia-700"

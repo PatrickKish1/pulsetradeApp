@@ -43,6 +43,7 @@ export function useAuth(): UseAuthReturn {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const web3Ref = useRef<Web3 | null>(null);
   const authStore = useAuthStore();
+  const initialCheckRef = useRef(false);
 
   // Save user data to Firebase
   const saveUserData = useCallback(async (data: Partial<UserInfo>) => {
@@ -57,12 +58,11 @@ export function useAuth(): UseAuthReturn {
         address: authStore.account.toLowerCase(),
         lastSeen: timestamp,
         ...(userDoc.exists() ? userDoc.data() as Omit<UserInfo, 'address'> : { createdAt: timestamp }),
-        ...data, // Spread the new data last to ensure it takes precedence
-        isOnboardingComplete: data.isOnboardingComplete ?? false // Explicitly set after spread
+        ...data,
+        isOnboardingComplete: data.isOnboardingComplete ?? false
       };
 
       await setDoc(userRef, userData, { merge: true });
-      setUserInfo(userData);
       
       // Update auth store with new user data
       authStore.setUserData({
@@ -75,6 +75,9 @@ export function useAuth(): UseAuthReturn {
         createdAt: userData.createdAt
       });
 
+      // Only update userInfo if the component is still mounted
+      setUserInfo(userData);
+
     } catch (error) {
       console.error('Failed to save user data:', error);
       throw error;
@@ -85,17 +88,26 @@ export function useAuth(): UseAuthReturn {
   const checkUserExists = useCallback(async (address: string): Promise<boolean> => {
     try {
       const userDoc = await getDoc(doc(db, 'users', address.toLowerCase()));
-      if (userDoc.exists()) {
+      const exists = userDoc.exists();
+      if (exists) {
         const userData = userDoc.data() as UserInfo;
-        setUserInfo(userData);
-        return true;
+        // Update the auth store instead of local state
+        authStore.setUserData({
+          address: userData.address,
+          email: userData.email,
+          tradingLevel: userData.tradingLevel || null,
+          accountType: userData.accountType || null,
+          isOnboardingComplete: userData.isOnboardingComplete,
+          lastSeen: userData.lastSeen,
+          createdAt: userData.createdAt
+        });
       }
-      return false;
+      return exists;
     } catch (error) {
       console.error('Error checking user existence:', error);
       return false;
     }
-  }, []);
+  }, [authStore]);
 
   const connectWallet = useCallback(async () => {
     try {
@@ -106,12 +118,10 @@ export function useAuth(): UseAuthReturn {
         throw new Error('MetaMask is not installed. Please install MetaMask to continue.');
       }
 
-      // Initialize Web3
       if (!web3Ref.current) {
         web3Ref.current = new Web3(window.ethereum!);
       }
 
-      // Request accounts
       let accounts: string[];
       try {
         accounts = await window.ethereum!.request<string[]>({
@@ -135,17 +145,14 @@ export function useAuth(): UseAuthReturn {
 
       const userAddress = accounts[0];
       
-      // Check if user exists and has completed onboarding
       const exists = await checkUserExists(userAddress);
       const userDoc = exists ? await getDoc(doc(db, 'users', userAddress.toLowerCase())) : null;
       const userData = userDoc?.data() as UserInfo | undefined;
       
-      // Update auth store with connection status
       authStore.setAccount(userAddress);
       authStore.setConnected(true);
       authStore.setWeb3(web3Ref.current);
       
-      // If user exists and has completed onboarding, update their last seen
       if (exists && userData?.isOnboardingComplete) {
         await saveUserData({
           lastSeen: Date.now(),
@@ -155,7 +162,6 @@ export function useAuth(): UseAuthReturn {
         });
         router.push('/chats');
       } else {
-        // New user or incomplete onboarding - don't save to Firebase yet
         authStore.setUserData({
           address: userAddress,
           isOnboardingComplete: false,
@@ -190,19 +196,14 @@ export function useAuth(): UseAuthReturn {
     const ethereum = window.ethereum!;
 
     const handleAccountsChanged = async (accounts: string[]) => {
-      try {
-        if (accounts.length === 0) {
-          disconnectWallet();
-        } else if (accounts[0] !== authStore.account) {
-          const exists = await checkUserExists(accounts[0]);
-          if (exists) {
-            await saveUserData({ lastSeen: Date.now() });
-          }
-          authStore.setAccount(accounts[0]);
-        }
-      } catch (error) {
-        console.error('Error handling account change:', error);
+      if (accounts.length === 0) {
         disconnectWallet();
+      } else if (accounts[0] !== authStore.account) {
+        const exists = await checkUserExists(accounts[0]);
+        if (exists) {
+          await saveUserData({ lastSeen: Date.now() });
+        }
+        authStore.setAccount(accounts[0]);
       }
     };
 
@@ -214,29 +215,24 @@ export function useAuth(): UseAuthReturn {
       disconnectWallet();
     };
 
-    // Add listeners
     ethereum.on('accountsChanged', handleAccountsChanged);
     ethereum.on('chainChanged', handleChainChanged);
     ethereum.on('disconnect', handleDisconnect);
 
-    // Check if already connected
-    const checkInitialAccounts = async () => {
-      try {
-        const accounts = await ethereum.request<string[]>({ 
-          method: 'eth_accounts' 
+    // Check initial connection only once
+    if (!initialCheckRef.current) {
+      initialCheckRef.current = true;
+      ethereum.request<string[]>({ method: 'eth_accounts' })
+        .then(accounts => {
+          if (accounts && accounts.length > 0) {
+            handleAccountsChanged(accounts);
+          }
+        })
+        .catch(error => {
+          console.error('Error checking initial accounts:', error);
         });
-        
-        if (accounts && accounts.length > 0) {
-          await handleAccountsChanged(accounts);
-        }
-      } catch (error) {
-        console.error('Error checking initial accounts:', error);
-      }
-    };
+    }
 
-    checkInitialAccounts();
-
-    // Remove listeners on cleanup
     return () => {
       ethereum.removeListener('accountsChanged', handleAccountsChanged);
       ethereum.removeListener('chainChanged', handleChainChanged);
@@ -244,37 +240,22 @@ export function useAuth(): UseAuthReturn {
     };
   }, [authStore, disconnectWallet, checkUserExists, saveUserData]);
 
-  // Check initial connection
+  // Sync userInfo with authStore
   useEffect(() => {
-    const checkConnection = async () => {
-      if (isEthereumAvailable() && authStore.isConnected && authStore.account) {
-        try {
-          const accounts = await window.ethereum!.request<string[]>({
-            method: 'eth_accounts'
-          });
-          
-          if (accounts && accounts.length > 0) {
-            if (!web3Ref.current) {
-              web3Ref.current = new Web3(window.ethereum!);
-              authStore.setWeb3(web3Ref.current);
-            }
-            
-            const exists = await checkUserExists(accounts[0]);
-            if (exists) {
-              await saveUserData({ lastSeen: Date.now() });
-            }
-          } else {
-            disconnectWallet();
+    if (authStore.account && !userInfo) {
+      checkUserExists(authStore.account)
+        .then(exists => {
+          if (exists) {
+            getDoc(doc(db, 'users', authStore.account!.toLowerCase()))
+              .then(userDoc => {
+                if (userDoc.exists()) {
+                  setUserInfo(userDoc.data() as UserInfo);
+                }
+              });
           }
-        } catch (error) {
-          console.error('Failed to check wallet connection:', error);
-          disconnectWallet();
-        }
-      }
-    };
-
-    checkConnection();
-  }, [authStore, disconnectWallet, checkUserExists, saveUserData]);
+        });
+    }
+  }, [authStore.account, userInfo, checkUserExists]);
 
   return {
     address: authStore.account,

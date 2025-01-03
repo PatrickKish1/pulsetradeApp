@@ -156,7 +156,7 @@ export function ConnectButton({
     return (
       <>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger aria-description='connect-button' asChild>
             <Button 
               variant={variant}
               size={size}
@@ -167,8 +167,8 @@ export function ConnectButton({
               <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
+          <DropdownMenuContent aria-describedby='connect-button' align="end" className="w-56">
+            <DropdownMenuLabel aria-describedby='connect-button'>
               Connected Account
               {userData?.email && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -177,12 +177,12 @@ export function ConnectButton({
               )}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={copyAddress} className="cursor-pointer">
+            <DropdownMenuItem aria-description='connect-button' onClick={copyAddress} className="cursor-pointer">
               <span className="w-full font-mono text-xs">{account}</span>
               <Copy className="ml-2 h-4 w-4" />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="font-mono text-xs">
+            <DropdownMenuItem aria-description='connect-button' className="font-mono text-xs">
               <span className="flex justify-between w-full">
                 <span>Balance:</span>
                 <span>
@@ -233,18 +233,23 @@ export function ConnectButton({
   // Connected state without dropdown (for mobile menu)
   if (isConnected && account && !showDropdown) {
     return (
-      <DropdownMenuItem className="font-mono text-xs">
-        <span className="flex justify-between w-full">
-          <span>Balance:</span>
-          <span>
-            {isLoadingBalance ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              `${balance} ETH`
-            )}
-          </span>
-        </span>
-      </DropdownMenuItem>
+      <DropdownMenu>
+        <DropdownMenuContent>
+          <DropdownMenuItem className="font-mono text-xs">
+            <span className="flex justify-between w-full">
+              <span>Balance:</span>
+              <span>
+                {isLoadingBalance ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  `${balance} ETH`
+                )}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
     );
   }
 

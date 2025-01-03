@@ -136,7 +136,7 @@ export default function Index() {
             <Image
               src="/logo.png"
               alt="Loading"
-              priority={true}
+              unoptimized={true}
               width={128}
               height={128}
               className="animate-bounce rounded-full bg-fuchsia-700"

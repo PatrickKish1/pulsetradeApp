@@ -106,18 +106,18 @@ export function ConnectModal({ open, onOpenChange }: ConnectModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center mb-4">
+      <DialogContent title='Connect' aria-description='connect-modal' aria-describedby='connect-modal' className="sm:max-w-[425px]">
+        <DialogHeader title='connect' aria-description='connect-modal' aria-describedby='connect-modal'>
+          <DialogTitle title='connect' aria-description='connect-modal' aria-describedby='connect-modal' className="text-2xl font-bold text-center mb-4">
             Connect to Platform
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
           {displayError && (
-            <Alert variant="destructive" className="text-sm">
+            <Alert aria-description='connect-modal' variant="destructive" className="text-sm">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{displayError}</AlertDescription>
+              <AlertDescription aria-description='connect-modal'>{displayError}</AlertDescription>
             </Alert>
           )}
 

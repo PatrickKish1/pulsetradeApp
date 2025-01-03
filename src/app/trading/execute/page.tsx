@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/ca
 import { Input } from '@/src/components/ui/input';
 import useAuth from '@/src/lib/hooks/useAuth';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
+import { ArrowLeft } from 'lucide-react';
+import {useRouter} from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 
@@ -87,6 +89,7 @@ export default function TradingExecutionPage() {
     availableMargin: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Trade form state
@@ -191,7 +194,18 @@ export default function TradingExecutionPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mb-32">
+      <div className="flex items-center mb-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/trading')}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold">Trading</h1>
+          </div>
       <h1 className="text-2xl font-bold">Execute Trade</h1>
 
       {/* Price Feeds */}

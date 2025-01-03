@@ -36,7 +36,7 @@ const navLinks: NavLink[] = [
   { href: '/ai-chats', label: 'AI Chat', requiresAuth: true, requiresOnboarding: true },
   { href: '/trading', label: 'Trading', requiresAuth: true, requiresOnboarding: true },
   { href: '/prop-firm', label: 'Prop Firm', requiresAuth: true, requiresOnboarding: true },
-  { href: '/admin', label: 'Admin', requiresAuth: true, requiresOnboarding: true },
+  { href: '/admin', label: 'Admin', requiresAuth: true },
 ];
 
 export default function Header() {
@@ -187,9 +187,12 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1 flex-grow justify-center max-w-2xl mx-4">
-            <div className="rounded-md backdrop-blur-md bg-white/30 px-2 py-1.5 shadow-sm border border-white/50 flex flex-wrap justify-center">
+            <MaxWidthWrapper>
+              <div className="rounded-md backdrop-blur-md bg-white/30 px-2 py-1.5 shadow-sm border border-white/50 flex flex-wrap justify-center">
               {filteredNavLinks.map(renderNavLink)}
             </div>
+            </MaxWidthWrapper>
+            
           </nav>
 
           {/* Desktop Wallet */}

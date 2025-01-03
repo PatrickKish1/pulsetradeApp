@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { Shield, Check, AlertCircle } from 'lucide-react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
+import { Shield, Check, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/src/components/ui/select';
 import Header from '@/src/components/Header';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/ca
 import { Textarea } from '@/src/components/ui/textarea';
 import useAuth from '@/src/lib/hooks/useAuth';
 import { Input } from '@/src/components/ui/input';
+import { useRouter } from 'next/navigation';
+import { Label } from '@/src/components/ui/label';
 
 
 
@@ -28,6 +30,7 @@ export default function AdminVerificationPage() {
   const { address, isConnected } = useAuth();
   const [userAddress, setUserAddress] = useState('');
   const [agreementTerms, setAgreementTerms] = useState('');
+  const router = useRouter();
   const [profitShare, setProfitShare] = useState('20');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -135,7 +138,18 @@ export default function AdminVerificationPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
+    <div className="p-6 max-w-4xl mx-auto space-y-8 mb-48">
+      <div className="flex items-center mb-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/admin')}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold">Admin</h1>
+      </div>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Admin Verification</h1>
@@ -201,12 +215,11 @@ export default function AdminVerificationPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Profit Share (%)</label>
+            <Label className="text-sm font-medium">Profit Share (%)</Label>
             <Select 
               value={profitShare} 
               onValueChange={setProfitShare}
-              disabled={!verificationSteps[0].completed || isLoading}
-            >
+              disabled={!verificationSteps[0].completed || isLoading}>
               <SelectTrigger>
                 <SelectValue placeholder="Select profit share percentage" />
               </SelectTrigger>
@@ -261,7 +274,7 @@ export default function AdminVerificationPage() {
       </Card>
 
       {verificationSteps.every(step => step.completed) && (
-        <Alert className="bg-green-50 border-green-200">
+        <Alert popover='auto' className="bg-green-50 border-green-200">
           <AlertDescription className="flex items-center gap-2 text-green-800">
             <Check className="h-4 w-4" />
             All verification steps completed successfully. You are now a verified admin.

@@ -21,6 +21,14 @@ export default function AIChatsPage() {
   const [loading, setLoading] = useState(true);
   const [showNewChat, setShowNewChat] = useState(false);
 
+  const truncateBySentence = (sentence: string, maxSentences = 1) => {
+    // Match sentences ending with ., !, or ?
+    const sentences = sentence.match(/[^.!?]+[.!?]+/g) || [sentence];
+    
+    if (sentences.length <= maxSentences) return sentence;
+    return sentences.slice(0, maxSentences).join('').trim();
+  };
+
   useEffect(() => {
     if (!isConnected || !address) {
       setLoading(false);
@@ -91,7 +99,7 @@ export default function AIChatsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 mb-36">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
@@ -126,14 +134,14 @@ export default function AIChatsPage() {
                   onClick={() => router.push(`/ai-chat/${chat.id}`)}
                 >
                   <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start text-wrap truncate">
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg mb-1">
                           {chat.title || 'New Chat'}
                         </h3>
                         {chat.lastMessage && (
-                          <p className="text-gray-600 text-sm truncate">
-                            {chat.lastMessage.content}
+                          <p className="text-gray-600 text-base">
+                            {truncateBySentence(chat.lastMessage.content)}
                           </p>
                         )}
                       </div>

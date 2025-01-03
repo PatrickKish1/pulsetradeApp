@@ -9,6 +9,7 @@ import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import useAuth from '@/src/lib/hooks/useAuth';
 import Image from 'next/image';
+import Header from '@/src/components/Header';
 
 
 interface PoolMetrics {
@@ -120,7 +121,6 @@ export default function PropFirmOverview() {
               height={128}
               className="animate-bounce rounded-full bg-fuchsia-700"
             />
-            <span className="text-sm text-gray-500">Loading...</span>
           </div>
       </div>
     );
@@ -129,6 +129,7 @@ export default function PropFirmOverview() {
   if (!isConnected) {
     return (
       <div className="p-6">
+        <Header />
         <Alert>
           <AlertDescription>
             Please connect your wallet to access the prop firm dashboard.
@@ -146,10 +147,11 @@ export default function PropFirmOverview() {
   const COLORS = ['#10B981', '#EF4444'];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mb-32">
       {/* Header */}
+      <Header />
       <div className="flex justify-between items-center">
-        <div>
+        <div className='mt-10'>
           <h1 className="text-2xl font-bold">Prop Firm Overview</h1>
           <p className="text-gray-500 mt-1">Manage your prop firm pools and traders</p>
         </div>

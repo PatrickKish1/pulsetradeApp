@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, LineChart, TrendingUp, TrendingDown } from 'lucide-react';
+import { Download, LineChart, TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
 import Header from '@/src/components/Header';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import useAuth from '@/src/lib/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+
+
+
 
 interface Trade {
   id: number;
@@ -74,6 +78,7 @@ const generateMockTrades = (): Trade[] => {
 export default function TradeHistoryPage() {
   const { address, isConnected } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
+  const router = useRouter();
   const [stats, setStats] = useState<TradeStats>({
     totalTrades: 0,
     winningTrades: 0,
@@ -212,7 +217,19 @@ export default function TradeHistoryPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header and Controls */}
+      <Header />
       <div className="flex justify-between items-center">
+      <div className="flex items-center mb-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/trading')}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold">Trading</h1>
+          </div>
         <h1 className="text-2xl font-bold">Trade History</h1>
         <div className="flex gap-4">
           <Select value={timeFilter} onValueChange={setTimeFilter}>

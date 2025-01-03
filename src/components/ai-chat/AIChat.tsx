@@ -10,11 +10,8 @@ import db from '../../../firebase.config';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import useAuth from '@/src/lib/hooks/useAuth';
+import MaxWidthWrapper from '../MaxWidthWrapper';
 
-
-
-
-// Flexible instructions that can be easily updated
 const chatInstructions = [
   "Ask about market analysis and trading insights",
   "Get real-time price information using (S:SYMBOL) format",
@@ -25,9 +22,10 @@ const chatInstructions = [
 
 interface WelcomeProps {
   onClose: () => void;
+  onSendMessage?: (message: string) => Promise<void>;
 }
 
-const Welcome: React.FC<WelcomeProps> = ({ onClose }) => {
+const Welcome: React.FC<WelcomeProps> = ({ onClose, onSendMessage }) => {
   return (
     <div className="flex flex-col items-center text-center p-6 animate-fadeIn">
       <Image
@@ -116,7 +114,7 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => router.push('/chart')}
+              onClick={() => router.push('/trading/execute')}
             >
               Go to Chart
             </Button>
@@ -143,12 +141,11 @@ const Message: React.FC<MessageProps> = ({ content, isAi, isLoading }) => (
           <Image
             src="/logo.png"
             alt="Loading"
-            priority={true}
             width={32}
             height={32}
             className="animate-pulse"
           />
-          </div>
+        </div>
       ) : (
         <div className="whitespace-pre-wrap">{content}</div>
       )}
@@ -159,9 +156,14 @@ const Message: React.FC<MessageProps> = ({ content, isAi, isLoading }) => (
 interface AIChatterProps {
   onChatCreated?: (chatId: string) => void;
   existingChatId?: string;
+  initialThreadId?: string;
 }
 
-const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) => {
+const AIChatter: React.FC<AIChatterProps> = ({ 
+  onChatCreated, 
+  existingChatId,
+  initialThreadId 
+}) => {
   const { address } = useAuth();
   const [showWelcome, setShowWelcome] = useState(true);
   const [messages, setMessages] = useState<Array<{
@@ -171,6 +173,7 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [tradeValues, setTradeValues] = useState<TradeValues | null>(null);
+  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(initialThreadId);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -197,27 +200,36 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
         userMessage.toLowerCase().includes(term)
       );
 
-      const url = 'https://tradellm.onrender.com/api/chat'
-      const chatUrl = new URL(url)
+      // Prepare the request payload
+      const payload = {
+        message: userMessage,
+        threadId: currentThreadId // Include threadId if it exists
+      };
+
+      const url = 'https://tradellm.onrender.com/api/chat';
+      const chatUrl = new URL(url);
       const response = await fetch(`${chatUrl}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          threadId: existingChatId ? existingChatId : undefined
-        }),
+        body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message to API');
+      }
 
       const data: AIResponse = await response.json();
       const aiMessage = data.response.kwargs.content;
 
+      // Update messages state with AI response
       setMessages(prev => [...prev, { content: aiMessage, isAi: true }]);
 
-      // Create new chat if needed
+      // Handle new chat creation
       if (!existingChatId && onChatCreated) {
+        // For new chats, create the chat document with the threadId from the first response
         const chatRef = await addDoc(collection(db, 'ai_chats'), {
           userId: address.toLowerCase(),
-          threadId: data.threadId,
+          threadId: data.threadId, // Store the threadId from the first response
           title: userMessage.slice(0, 50) + (userMessage.length > 50 ? '...' : ''),
           lastMessage: {
             content: userMessage,
@@ -227,7 +239,7 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
           updatedAt: Date.now()
         });
 
-        // Also add the first message
+        // Add user message
         await addDoc(collection(db, 'ai_chat_messages'), {
           chatId: chatRef.id,
           content: userMessage,
@@ -243,9 +255,11 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
           timestamp: Date.now()
         });
 
+        // Update the current threadId
+        setCurrentThreadId(data.threadId);
         onChatCreated(chatRef.id);
       } else if (existingChatId) {
-        // Update existing chat
+        // For existing chats, update the chat document
         await updateDoc(doc(db, 'ai_chats', existingChatId), {
           lastMessage: {
             content: aiMessage,
@@ -329,7 +343,8 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
           </div>
 
           <div className="relative">
-            <Card>
+            <MaxWidthWrapper>
+              <Card>
               <CardContent className="p-4">
                 <form onSubmit={handleSendMessage} className="flex items-end space-x-4">
                   <textarea
@@ -355,6 +370,8 @@ const AIChatter: React.FC<AIChatterProps> = ({ onChatCreated, existingChatId }) 
                 </form>
               </CardContent>
             </Card>
+            </MaxWidthWrapper>
+            
           </div>
         </>
       )}

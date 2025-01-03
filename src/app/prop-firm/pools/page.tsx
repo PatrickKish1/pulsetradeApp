@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { Plus } from 'lucide-react';
-import { Dialog, DialogTrigger, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
-import { Input } from '@/src/components/ui/input';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
-import { DialogHeader } from '@/src/components/ui/dialog';
 import useAuth from '@/src/lib/hooks/useAuth';
+import Header from '@/src/components/Header';
+import { useRouter } from 'next/navigation';
+import CreatePoolForm from '@/src/components/trading/CreatePoolForm';
+
+
 
 interface Pool {
   id: string;
@@ -96,6 +97,15 @@ const generateMockRequests = (): AllocationRequest[] => [
     strategy: 'Day Trading',
     timestamp: Date.now() - 43200000,
     status: 'pending'
+  },
+  {
+    id: '3',
+    traderAddress: '0xjdrf...2609',
+    experience: 'beginner',
+    requestedAmount: 100,
+    strategy: 'Day Trading',
+    timestamp: Date.now() - 73200000,
+    status: 'pending'
   }
 ];
 
@@ -108,6 +118,7 @@ export default function PoolManagementPage() {
   const [riskLevel, setRiskLevel] = useState('1');
   const [allocationRequests, setAllocationRequests] = useState<AllocationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   const [showNewPoolDialog, setShowNewPoolDialog] = useState(false);
 
   const loadPools = async () => {
@@ -216,6 +227,7 @@ export default function PoolManagementPage() {
   if (!isConnected) {
     return (
       <div className="p-6">
+        <Header />
         <Alert>
           <AlertDescription>
             Please connect your wallet to manage prop firm pools.
@@ -226,73 +238,70 @@ export default function PoolManagementPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mb-32">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Pool Management</h1>
-        <Dialog open={showNewPoolDialog} onOpenChange={setShowNewPoolDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Pool
+      <div className="flex items-center mb-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/prop-firm')}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Pool</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Total Pool Amount</label>
-                <Input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={newPoolAmount}
-                  onChange={(e) => setNewPoolAmount(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Minimum Allocation</label>
-                <Input
-                  type="number"
-                  placeholder="Minimum allocation per trader"
-                  value={minAllocation}
-                  onChange={(e) => setMinAllocation(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Maximum Allocation</label>
-                <Input
-                  type="number"
-                  placeholder="Maximum allocation per trader"
-                  value={maxAllocation}
-                  onChange={(e) => setMaxAllocation(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Risk Level</label>
-                <Select value={riskLevel} onValueChange={setRiskLevel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select risk level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Low Risk</SelectItem>
-                    <SelectItem value="2">Medium Risk</SelectItem>
-                    <SelectItem value="3">High Risk</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                className="w-full"
-                onClick={createPool}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Creating...' : 'Create Pool'}
+            <h1 className="text-xl font-semibold">Prop Firm</h1>
+          </div>
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Pool Management</h1>
+              <Button onClick={() => setShowNewPoolDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Pool
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+
+      <CreatePoolForm
+        isOpen={showNewPoolDialog}
+        onClose={() => setShowNewPoolDialog(false)}
+        onSubmit={async (poolData) => {
+          if (!poolData.totalAmount || !poolData.minAllocation || !poolData.maxAllocation) {
+            toast.error('Please fill all required fields');
+            return;
+          }
+
+          if (Number(poolData.minAllocation) >= Number(poolData.maxAllocation)) {
+            toast.error('Minimum allocation must be less than maximum allocation');
+            return;
+          }
+
+          setIsLoading(true);
+          try {
+            await new Promise(resolve => setTimeout(resolve, OPERATION_DELAY));
+
+            const newPool: Pool = {
+              id: Date.now().toString(),
+              totalAmount: Number(poolData.totalAmount),
+              allocatedAmount: 0,
+              tradersCount: 0,
+              performance: 0,
+              status: 'active',
+              createdAt: Date.now(),
+              minAllocation: Number(poolData.minAllocation),
+              maxAllocation: Number(poolData.maxAllocation),
+              riskLevel: Number(poolData.riskLevel)
+            };
+
+            setPools(currentPools => [newPool, ...currentPools]);
+            toast.success('Pool created successfully');
+            setShowNewPoolDialog(false);
+          } catch (error) {
+            console.error('Failed to create pool:', error);
+            toast.error('Failed to create pool');
+          } finally {
+            setIsLoading(false);
+          }
+        }}
+        isLoading={isLoading}
+      />
 
       {/* Active Pools */}
       <Card>
