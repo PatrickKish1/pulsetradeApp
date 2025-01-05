@@ -14,6 +14,10 @@ Due to build errors of a dependency this project was restarted from scratch a fe
 
 ### Original code base - https://github.com/PatrickKish1/pulsetrade
 
+### Slide Deck with some resource links - https://github.com/PatrickKish1/pulsetradeApp/blob/main/PULSE%20TRADE.pdf
+
+### Deployed frontend code base - https://github.com/PatrickKish1/pulsetradeApp/
+
 &nbsp;
 &nbsp;
 
