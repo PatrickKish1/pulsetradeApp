@@ -105,7 +105,7 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
               <textarea
                 value={participants.join('\n')}
                 onChange={(e) => setParticipants(e.target.value.split('\n').filter(Boolean))}
-                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
+                className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
                   getFieldError('participants') 
                     ? 'border-red-500 focus:ring-red-500' 
                     : 'border-gray-300'

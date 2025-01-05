@@ -351,7 +351,7 @@ const AIChatter: React.FC<AIChatterProps> = ({
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Type your message..."
-                    className="flex-1 p-3 h-12 min-h-[3rem] max-h-32 resize-y border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 p-3 h-12 min-h-[3rem] bg-white max-h-32 resize-y border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     disabled={isLoading}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
