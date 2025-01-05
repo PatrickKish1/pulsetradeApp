@@ -65,7 +65,7 @@ export const AIInputCard = ({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type your message..."
-              className="flex-1 resize-none overflow-hidden focus:outline-none min-h-[44px] max-h-[200px]"
+              className="flex-1 resize-none overflow-hidden bg-white focus:outline-none min-h-[44px] max-h-[200px]"
               disabled={disabled}
               style={{ maxWidth: 'calc(100% - 96px)' }}
               onKeyDown={(e) => {
