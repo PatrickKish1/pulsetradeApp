@@ -2,7 +2,44 @@
 
 Welcome to the **AI-Powered Trading Platform** repository! This platform combines cutting-edge AI capabilities, blockchain technology, and seamless integration to deliver a state-of-the-art trading experience. It is designed to empower both individual traders and trade administrators to maximize profits, manage accounts efficiently, and execute trades with real-time intelligence.
 
----
+&nbsp;
+&nbsp;
+
+```
+⚠️ NOTICE
+
+Due to build errors of a dependency this project was restarted from scratch a few times. The orignal code is available at the url below 👇. The new frontend code is a simplified version which has some features removed for the sake debugging and production build. Unfortunately the frontend developer has to go fullstack the project which cause some of the key features being reducted. Feel free to check the original code at the url below for contracts and Koii task.
+
+```
+
+### Original code base - https://github.com/PatrickKish1/pulsetrade
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+## Functioinal Features
+
+&nbsp;
+
+Currently the features working are:
+
+1. AI Chat - For chatting with an LLM to get trading advice. The LLM is capable of providing insight into trading and some data about the market. It is also capable of provising take profit, stop loss and lot size for trades.
+
+2. Peer-to-Peer chat system - This chat system was designed so as to allow users to communicate with each other. It is a simple chat system that allows users to send messages and create group chats for some amusement. This chat system will provide user data based on their individual discussions and group chat creating a personality profile for the user which will be used by an AI agent to design a trading strategy based on the user's intrests, assit in portfolio management and diversification as well as recommendations.
+
+3. Admin Panel - This is for admin traders. There are two types of users on the platform, one is a standard user and the other is a trade admin. Standard users are regular traders who can only view their own account information and trade history. Trade admins are users who have been granted the ability to manage user accounts, a standard user goes into agreement with a trade admin to trade on their behalf and by signing a zk proof forming a sort of trust link so that the trade admin can execute trades on behalf of the standard user. These trades are done using virtual balances so as not to let trade admins steal user funds or misuse them. The implementation of this is currently minimal due to the build issues. In the signage contrat both traders agree on the percentage of profits made in trades.
+
+4. Prop firm - Prop Firms are one of the ways beginners attain capital to start trading. Here we have a pool for which users can contribute to and then the pool is used to fund accounts of traders who request for it. The pool has side benefits depending on agreements clause added, for some a user will get an interest percentage on how much they contribute and will be notified how much was used to funds another user.
+
+5. Trade execution - This is the part of the application that makes money for users. This is supposed to b for users to create their trades to execute. The contract has been defined for this but due to build issues no integration for it was made .
+
+6. Trading History - This just displays users trading history and how their account is fairing.
+
+&nbsp;
+&nbsp;
 
 ## Key Features
 
@@ -41,7 +78,11 @@ Welcome to the **AI-Powered Trading Platform** repository! This platform combine
    - Tutorials for beginner traders as Koii tasks, rewarding users with platform tokens upon completion.
    - Tokens created on Koii are used to incentivize engagement and learning.
 
----
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
 
 ## Technologies Used
 
@@ -104,7 +145,13 @@ Welcome to the **AI-Powered Trading Platform** repository! This platform combine
 
   3. Voting & Prop Firm Module (governance.cairo): Manages voting mechanisms, vote validation, external data integration, warning/ban systems, prop firm pool management, fund allocation for beginners, and statistics tracking.
 
-- **Particle**: Ensures seamless user onboarding and interaction with blockchain networks for executing trades and smart contract functionalities.
+- **Particle**: Ensures seamless user onboarding and interaction with blockchain networks for executing trades and smart contract functionalities. (currently now in use)
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
 
 ### **Frontend**
 
@@ -171,12 +218,6 @@ Welcome to the **AI-Powered Trading Platform** repository! This platform combine
 
 &nbsp;
 &nbsp;
-
-- **Future Developments**:
-- **Docker**: For containerizing application components.
-- **Kubernetes**: For orchestrating containers in a scalable way.
-
----
 
 ## System Architecture
 
@@ -281,6 +322,12 @@ The following table outlines the smart contracts required for the platform, thei
 4. Access the platform at `https://pulsetrade-app.vercel.app/`.
 
 ---
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
 
 ## Contributing
 
