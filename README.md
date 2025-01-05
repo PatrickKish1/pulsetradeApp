@@ -30,15 +30,51 @@ Due to build errors of a dependency this project was restarted from scratch a fe
 
 Currently the features working are:
 
-1. AI Chat - For chatting with an LLM to get trading advice. The LLM is capable of providing insight into trading and some data about the market. It is also capable of provising take profit, stop loss and lot size for trades.
+1.  AI Chat - For chatting with an LLM to get trading advice. The LLM is capable of providing insight into trading and some data about the market. It is also capable of provising take profit, stop loss and lot size for trades. Market data is from polygon.io so to get data for a market instrument use the following in the provided format
+
+        Stocks:
+        (S: AAPL)
+        (S: MSFT)
+        (S:TSLA)
+        (S: AMZN)
+        (S: GOOGL)
+
+        Crypto:
+        (X:BTCUSD) - Bitcoin to USD.
+        (X:ETHUSD) - Ethereum to USD.
+        (X:BNBUSD) - Binance Coin to USD.
+        (X:ADAUSD) - Cardano to USD.
+        (X:SOLUSD) - Solana to USD.
+
+        Forex:
+        (C: EURUSD) - Euro to US Dollar.
+        (C: GBPUSD) - British Pound to US Dollar.
+        (C: USDJPY) - US Dollar to Japanese Yen.
+        (C: AUDUSD) - Australian Dollar to US Dollar.
+        (C: USDCAD) - US Dollar to Canadian Dollar.
+
+&nbsp;
+&nbsp;
 
 2. Peer-to-Peer chat system - This chat system was designed so as to allow users to communicate with each other. It is a simple chat system that allows users to send messages and create group chats for some amusement. This chat system will provide user data based on their individual discussions and group chat creating a personality profile for the user which will be used by an AI agent to design a trading strategy based on the user's intrests, assit in portfolio management and diversification as well as recommendations.
 
+&nbsp;
+&nbsp;
+
 3. Admin Panel - This is for admin traders. There are two types of users on the platform, one is a standard user and the other is a trade admin. Standard users are regular traders who can only view their own account information and trade history. Trade admins are users who have been granted the ability to manage user accounts, a standard user goes into agreement with a trade admin to trade on their behalf and by signing a zk proof forming a sort of trust link so that the trade admin can execute trades on behalf of the standard user. These trades are done using virtual balances so as not to let trade admins steal user funds or misuse them. The implementation of this is currently minimal due to the build issues. In the signage contrat both traders agree on the percentage of profits made in trades.
+
+&nbsp;
+&nbsp;
 
 4. Prop firm - Prop Firms are one of the ways beginners attain capital to start trading. Here we have a pool for which users can contribute to and then the pool is used to fund accounts of traders who request for it. The pool has side benefits depending on agreements clause added, for some a user will get an interest percentage on how much they contribute and will be notified how much was used to funds another user.
 
+&nbsp;
+&nbsp;
+
 5. Trade execution - This is the part of the application that makes money for users. This is supposed to b for users to create their trades to execute. The contract has been defined for this but due to build issues no integration for it was made .
+
+&nbsp;
+&nbsp;
 
 6. Trading History - This just displays users trading history and how their account is fairing.
 
