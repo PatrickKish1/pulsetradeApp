@@ -208,7 +208,7 @@ const AIChatter: React.FC<AIChatterProps> = ({
 
       const url = 'https://tradellm.onrender.com/api/chat';
       const chatUrl = new URL(url);
-      const response = await fetch(`${chatUrl}`, {
+      const response = await fetch(`${url}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
