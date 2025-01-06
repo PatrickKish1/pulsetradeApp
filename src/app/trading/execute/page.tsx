@@ -6,11 +6,12 @@ import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Input } from '@/src/components/ui/input';
 import useAuth from '@/src/lib/hooks/useAuth';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/src/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import {useRouter} from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { Label } from '@/src/components/ui/label';
 
 
 interface PriceFeed {
@@ -255,7 +256,7 @@ export default function TradingExecutionPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Asset</label>
+              <Label className="text-sm font-medium">Asset</Label>
               <Select
                 value={tradeForm.asset}
                 onValueChange={(value) => setTradeForm(prev => ({ ...prev, asset: value }))}
@@ -274,7 +275,7 @@ export default function TradingExecutionPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Order Type</label>
+              <Label className="text-sm font-medium">Order Type</Label>
               <Select
                 value={tradeForm.type}
                 onValueChange={(value: 'Long' | 'Short') => setTradeForm(prev => ({ ...prev, type: value }))}
@@ -290,7 +291,7 @@ export default function TradingExecutionPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Amount (USD)</label>
+              <Label className="text-sm font-medium">Amount (USD)</Label>
               <Input
                 type="number"
                 value={tradeForm.amount || ''}
@@ -300,7 +301,7 @@ export default function TradingExecutionPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Leverage</label>
+              <Label className="text-sm font-medium">Leverage</Label>
               <Select
                 value={tradeForm.leverage.toString()}
                 onValueChange={(value) => setTradeForm(prev => ({ ...prev, leverage: Number(value) }))}
@@ -320,7 +321,7 @@ export default function TradingExecutionPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Stop Loss (%)</label>
+                <Label className="text-sm font-medium">Stop Loss (%)</Label>
                 <Input
                   type="number"
                   value={tradeForm.stopLoss || ''}
@@ -329,7 +330,7 @@ export default function TradingExecutionPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Take Profit (%)</label>
+                <Label className="text-sm font-medium">Take Profit (%)</Label>
                 <Input
                   type="number"
                   value={tradeForm.takeProfit || ''}

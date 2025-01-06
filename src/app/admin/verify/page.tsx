@@ -205,7 +205,7 @@ export default function AdminVerificationPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">User Address</label>
+            <Label className="text-sm font-medium">User Address</Label>
             <Input
               placeholder="Enter user's wallet address"
               value={userAddress}
@@ -234,7 +234,7 @@ export default function AdminVerificationPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Agreement Terms</label>
+            <Label className="text-sm font-medium">Agreement Terms</Label>
             <Textarea
               placeholder="Enter agreement terms and conditions"
               value={agreementTerms}

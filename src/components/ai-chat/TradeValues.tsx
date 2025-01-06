@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
 
 interface TradeValues {
   takeProfit: string;
@@ -38,8 +40,8 @@ export const TradeValuesCard = ({ values, onUpdate }: TradeValuesCardProps) => {
       <CardContent className="pt-4">
         <div className="grid grid-cols-1 gap-4">
           <div className="flex flex-col">
-            <label className="text-sm text-gray-500">Take Profit</label>
-            <input
+            <Label className="text-sm text-gray-500">Take Profit</Label>
+            <Input
               type="text"
               value={localValues.takeProfit}
               onChange={(e) => handleChange('takeProfit', e.target.value)}
@@ -48,8 +50,8 @@ export const TradeValuesCard = ({ values, onUpdate }: TradeValuesCardProps) => {
           </div>
           
           <div className="flex flex-col">
-            <label className="text-sm text-gray-500">Stop Loss</label>
-            <input
+            <Label className="text-sm text-gray-500">Stop Loss</Label>
+            <Input
               type="text"
               value={localValues.stopLoss}
               onChange={(e) => handleChange('stopLoss', e.target.value)}
@@ -58,8 +60,8 @@ export const TradeValuesCard = ({ values, onUpdate }: TradeValuesCardProps) => {
           </div>
           
           <div className="flex flex-col">
-            <label className="text-sm text-gray-500">Lot Size</label>
-            <input
+            <Label className="text-sm text-gray-500">Lot Size</Label>
+            <Input
               type="text"
               value={localValues.lotSize}
               onChange={(e) => handleChange('lotSize', e.target.value)}

@@ -11,6 +11,8 @@ import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import useAuth from '@/src/lib/hooks/useAuth';
 import MaxWidthWrapper from '../MaxWidthWrapper';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
 
 const chatInstructions = [
   "Ask about market analysis and trading insights",
@@ -78,8 +80,8 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
       <CardContent className="pt-4">
         <div className="grid grid-cols-1 gap-4">
           <div className="flex flex-col">
-            <label className="text-sm text-gray-500">Take Profit</label>
-            <input
+            <Label className="text-sm text-gray-500">Take Profit</Label>
+            <Input
               type="text"
               value={values.takeProfit}
               onChange={(e) => onUpdate({ ...values, takeProfit: e.target.value })}
@@ -87,8 +89,8 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
             />
           </div>
           <div className="flex flex-col">
-            <label className="text-sm text-gray-500">Stop Loss</label>
-            <input
+            <Label className="text-sm text-gray-500">Stop Loss</Label>
+            <Input
               type="text"
               value={values.stopLoss}
               onChange={(e) => onUpdate({ ...values, stopLoss: e.target.value })}
@@ -96,8 +98,8 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
             />
           </div>
           <div className="flex flex-col">
-            <label className="text-sm text-gray-500">Lot Size</label>
-            <input
+            <Label className="text-sm text-gray-500">Lot Size</Label>
+            <Input
               type="text"
               value={values.lotSize}
               onChange={(e) => onUpdate({ ...values, lotSize: e.target.value })}

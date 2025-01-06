@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MaxWidthWrapper from '../MaxWidthWrapper';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 
 
 
@@ -32,7 +33,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <form onSubmit={handleSubmit} className="border-t p-4">
         <MaxWidthWrapper>
           <div className="flex space-x-4 mb-8 mt-4">
-            <input
+            <Input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}

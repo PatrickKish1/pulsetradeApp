@@ -1,6 +1,8 @@
 import { CreateChatFormProps } from '@/src/lib/hooks/chatsUtil';
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 
 
@@ -54,7 +56,7 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
       <form onSubmit={handleSubmit} className="space-y-6">
         {!initialGroupChat && (
           <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-            <input
+            <Input
               type="checkbox"
               id="groupChat"
               checked={isGroup}
@@ -69,19 +71,19 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
               }}
               className="form-checkbox bg-white h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
             />
-            <label htmlFor="groupChat" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="groupChat" className="text-sm font-medium text-gray-700">
               Create Group Chat
-            </label>
+            </Label>
           </div>
         )}
 
         {isGroup ? (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label className="block text-sm font-medium text-gray-700 mb-1">
                 Group Name
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
@@ -98,10 +100,10 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label className="block text-sm font-medium text-gray-700 mb-1">
                 Participant Addresses
                 <span className="text-gray-500 ml-1">(one per line)</span>
-              </label>
+              </Label>
               <textarea
                 value={participants.join('\n')}
                 onChange={(e) => setParticipants(e.target.value.split('\n').filter(Boolean))}
@@ -123,10 +125,10 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
           </>
         ) : (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label className="block text-sm font-medium text-gray-700 mb-1">
               Recipient Address
-            </label>
-            <input
+            </Label>
+            <Input
               type="text"
               value={recipientAddress}
               onChange={(e) => setRecipientAddress(e.target.value)}

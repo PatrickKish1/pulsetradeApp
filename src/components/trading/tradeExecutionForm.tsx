@@ -6,10 +6,11 @@ import { toast } from 'react-hot-toast';
 import useAuth from '@/src/lib/hooks/useAuth';
 import { Web3Provider, createEthereumTradingService } from '@/src/lib/services/ethereum-trading';
 import { createStarkNetTradingService } from '@/src/lib/services/starknet-trading';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@radix-ui/react-select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/src/components/ui/select';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 // Define proper types for Ethereum provider
 type EthereumWindow = Window & typeof globalThis & {
@@ -140,7 +141,7 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
         <div className="space-y-4">
           {/* Amount Input */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Trade Amount</label>
+            <Label className="text-sm font-medium">Trade Amount</Label>
             <Input
               type="number"
               placeholder="Enter amount"
@@ -157,7 +158,7 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
 
           {/* Risk Parameters */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Risk Percentage</label>
+            <Label className="text-sm font-medium">Risk Percentage</Label>
             <Select
               value={riskPercentage}
               onValueChange={(value) => {
@@ -180,7 +181,7 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
 
           {/* Position Size Display */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Position Size</label>
+            <Label className="text-sm font-medium">Position Size</Label>
             <Input
               type="text"
               value={positionSize}
@@ -194,7 +195,7 @@ export default function TradeExecutionForm({ subAccountAddress }: TradeExecution
 
           {/* Order Type Selection */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Order Type</label>
+            <Label className="text-sm font-medium">Order Type</Label>
             <Select
               value={orderType}
               onValueChange={setOrderType}
