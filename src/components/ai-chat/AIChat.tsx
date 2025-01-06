@@ -83,7 +83,7 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
               type="text"
               value={values.takeProfit}
               onChange={(e) => onUpdate({ ...values, takeProfit: e.target.value })}
-              className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border bg-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="flex flex-col">
@@ -92,7 +92,7 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
               type="text"
               value={values.stopLoss}
               onChange={(e) => onUpdate({ ...values, stopLoss: e.target.value })}
-              className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border bg-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="flex flex-col">
@@ -101,7 +101,7 @@ const TradeValuesCard: React.FC<TradeValuesCardProps> = ({ values, onUpdate }) =
               type="text"
               value={values.lotSize}
               onChange={(e) => onUpdate({ ...values, lotSize: e.target.value })}
-              className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border bg-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="flex space-x-4 mt-2">
@@ -215,7 +215,7 @@ const AIChatter: React.FC<AIChatterProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message to API');
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
       const data: AIResponse = await response.json();

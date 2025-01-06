@@ -67,7 +67,7 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
                   setParticipants([]);
                 }
               }}
-              className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+              className="form-checkbox bg-white h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
             />
             <label htmlFor="groupChat" className="text-sm font-medium text-gray-700">
               Create Group Chat
@@ -85,7 +85,7 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
                 type="text"
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
-                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
+                className={`w-full p-3 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
                   getFieldError('groupName') 
                     ? 'border-red-500 focus:ring-red-500' 
                     : 'border-gray-300'
@@ -130,7 +130,7 @@ export const CreateChatForm: React.FC<CreateChatFormProps> = ({
               type="text"
               value={recipientAddress}
               onChange={(e) => setRecipientAddress(e.target.value)}
-              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
+              className={`w-full p-3 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
                 getFieldError('recipientAddress') 
                   ? 'border-red-500 focus:ring-red-500' 
                   : 'border-gray-300'

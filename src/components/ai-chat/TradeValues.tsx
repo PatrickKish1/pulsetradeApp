@@ -43,7 +43,7 @@ export const TradeValuesCard = ({ values, onUpdate }: TradeValuesCardProps) => {
               type="text"
               value={localValues.takeProfit}
               onChange={(e) => handleChange('takeProfit', e.target.value)}
-              className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border rounded bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           
@@ -53,7 +53,7 @@ export const TradeValuesCard = ({ values, onUpdate }: TradeValuesCardProps) => {
               type="text"
               value={localValues.stopLoss}
               onChange={(e) => handleChange('stopLoss', e.target.value)}
-              className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border bg-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           
@@ -63,7 +63,7 @@ export const TradeValuesCard = ({ values, onUpdate }: TradeValuesCardProps) => {
               type="text"
               value={localValues.lotSize}
               onChange={(e) => handleChange('lotSize', e.target.value)}
-              className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border bg-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           
