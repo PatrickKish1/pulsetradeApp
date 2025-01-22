@@ -37,6 +37,7 @@ const navLinks: NavLink[] = [
   { href: '/trading', label: 'Trading', requiresAuth: true, requiresOnboarding: true },
   { href: '/prop-firm', label: 'Prop Firm', requiresAuth: true, requiresOnboarding: true },
   { href: '/admin', label: 'Admin', requiresAuth: true },
+  { href: '/predictions', label: 'Predictions', requiresAuth: true },
 ];
 
 export default function Header() {
