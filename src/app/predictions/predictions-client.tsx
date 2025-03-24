@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import Header from '@/src/components/Header';
 import { Button } from '@/src/components/ui/button';
@@ -14,17 +14,35 @@ interface PredictionsClientProps {
 
 export default function PredictionsClient({ initialPredictions = [] }: PredictionsClientProps) {
   const { address, isConnected, isLoading: authLoading } = useAuth();
-  const [predictions] = useState<Prediction[]>(initialPredictions);
+  const [predictions, setPredictions] = useState<Prediction[]>(initialPredictions);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchPredictions = async () => {
+    try {
+      const response = await fetch('/api/predictions');
+      if (!response.ok) throw new Error('Failed to fetch predictions');
+      const data = await response.json();
+      setPredictions(data);
+    } catch (error) {
+      console.error('Error fetching predictions:', error);
+    }
+  };
 
   const refreshPredictions = async () => {
     setIsRefreshing(true);
     try {
-      window.location.reload();
+      await fetchPredictions();
     } finally {
       setIsRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    fetchPredictions();
+    
+    const interval = setInterval(fetchPredictions, 300000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (authLoading) {
     return (
@@ -78,7 +96,7 @@ export default function PredictionsClient({ initialPredictions = [] }: Predictio
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {predictions.map((prediction, index) => (
                 <PredictionCard 
-                  key={`${prediction.symbol}-${index}`} 
+                  key={`${prediction._id || prediction.symbol + '-' + index}`} 
                   prediction={prediction} 
                 />
               ))}

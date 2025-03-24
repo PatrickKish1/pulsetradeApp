@@ -136,7 +136,7 @@ export function ConnectModal({ open, onOpenChange }: ConnectModalProps) {
               ) : (
                 <div className="flex items-center justify-center w-full">
                   <Image
-                    src="https://metamask.io/assets/icon.svg"
+                    src="https://i.imgur.com/wZdJv6K.png"
                     alt="MetaMask"
                     unoptimized={true}
                     width={24}

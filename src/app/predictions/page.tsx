@@ -2,8 +2,6 @@ import { MongoClient } from 'mongodb';
 import { Prediction } from '@/src/hooks/predictions';
 import PredictionsClient from './predictions-client';
 
-
-
 async function getPredictions(): Promise<Prediction[]> {
   try {
     if (!process.env.MONGODB_URI) {
@@ -12,10 +10,12 @@ async function getPredictions(): Promise<Prediction[]> {
 
     const client = await MongoClient.connect(process.env.MONGODB_URI);
     const db = client.db(process.env.MONGODB_DB_NAME);
+    
     const predictions = await db
       .collection(process.env.MONGODB_COLLECTION_NAME!)
       .find({})
       .sort({ timestamp: -1 })
+      .limit(100)
       .toArray();
 
     await client.close();

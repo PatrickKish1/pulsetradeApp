@@ -16,6 +16,7 @@ export interface ModelMetrics {
   }
   
   export interface Prediction {
+    _id: string;
     symbol: string;
     lastPrice: number;
     predictedPrice: number;
