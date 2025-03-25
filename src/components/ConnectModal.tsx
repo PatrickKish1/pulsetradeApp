@@ -139,8 +139,8 @@ export function ConnectModal({ open, onOpenChange }: ConnectModalProps) {
                     src="https://i.imgur.com/wZdJv6K.png"
                     alt="MetaMask"
                     unoptimized={true}
-                    width={24}
-                    height={24}
+                    width={80}
+                    height={80}
                     className="mr-2"
                   />
                   <span>Connect with MetaMask</span>

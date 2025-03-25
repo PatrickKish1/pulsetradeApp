@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Menu, ChevronDown, Copy, LogOut } from 'lucide-react';
@@ -45,6 +45,31 @@ export default function Header() {
   const pathname = usePathname();
   const { address, isConnected, disconnectWallet } = useAuth();
   const { userData } = useAuthStore();
+  const [isMoreNavOpen, setIsMoreNavOpen] = useState(false);
+  const moreNavRef = useRef<HTMLDivElement>(null);
+
+  const filteredNavLinks = useMemo(() => 
+    navLinks.filter(link => {
+      if (link.requiresAuth && !isConnected) return false;
+      if (link.requiresOnboarding && !userData?.isOnboardingComplete) return false;
+      return true;
+    }),
+    [isConnected, userData?.isOnboardingComplete]
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreNavRef.current && 
+          !moreNavRef.current.contains(event.target as Node)) {
+        setIsMoreNavOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const copyAddress = async () => {
     if (address) {
@@ -74,14 +99,19 @@ export default function Header() {
     }
   };
 
-  // Memoized filtered navigation links
-  const filteredNavLinks = useMemo(() => 
-    navLinks.filter(link => {
-      if (link.requiresAuth && !isConnected) return false;
-      if (link.requiresOnboarding && !userData?.isOnboardingComplete) return false;
-      return true;
-    }),
-    [isConnected, userData?.isOnboardingComplete]
+  const activeLink = filteredNavLinks.find(link => pathname === link.href);
+  const primaryLinks = activeLink 
+    ? [activeLink, ...filteredNavLinks.filter(link => 
+        link !== activeLink && 
+        link.href !== '/' && 
+        link.href !== '/about' && 
+        link.href !== '/tutorials'
+      ).slice(0, 3)
+    ]
+    : filteredNavLinks.slice(0, 4);
+  
+  const additionalLinks = filteredNavLinks.filter(
+    link => !primaryLinks.includes(link)
   );
 
   const renderMobileMenu = () => (
@@ -155,6 +185,54 @@ export default function Header() {
     return <ConnectButton variant="outline" />;
   };
 
+  const renderDesktopNavigation = () => (
+    <nav className="hidden lg:flex items-center space-x-1 flex-grow justify-center max-w-2xl mx-4">
+      <MaxWidthWrapper>
+        <div className="rounded-md backdrop-blur-md bg-white/30 px-2 py-1.5 shadow-sm border border-white/50 flex items-center">
+          {primaryLinks.map(renderNavLink)}
+          
+          {additionalLinks.length > 0 && (
+            <div 
+              ref={moreNavRef}
+              className="relative"
+            >
+              <button 
+                onClick={() => setIsMoreNavOpen(!isMoreNavOpen)}
+                className="flex items-center px-2 py-1 text-sm font-medium text-gray-700 rounded-md hover:text-purple-600 hover:bg-gray-200 transition-all duration-200 group"
+              >
+                More
+                <ChevronDown 
+                  className={cn(
+                    "ml-1 h-4 w-4 transition-transform",
+                    isMoreNavOpen ? "rotate-180" : ""
+                  )} 
+                />
+              </button>
+              
+              {isMoreNavOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {additionalLinks.map(link => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={cn(
+                        "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-purple-600",
+                        pathname === link.href && "bg-purple-50 text-purple-600"
+                      )}
+                      onClick={() => setIsMoreNavOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </MaxWidthWrapper>
+    </nav>
+  );
+
   const renderNavLink = (link: NavLink) => (
     <Link
       key={link.href}
@@ -173,7 +251,6 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full backdrop-blur-sm supports-[backdrop-filter]:bg-white/80 border-b border-gray-200">
       <MaxWidthWrapper>
         <div className="flex items-center justify-between py-4">
-          {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
             <Image 
               src="/logo.png" 
@@ -186,22 +263,12 @@ export default function Header() {
             <span className="text-lg md:text-xl font-bold text-purple-600">PULSE TRADE</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1 flex-grow justify-center max-w-2xl mx-4">
-            <MaxWidthWrapper>
-              <div className="rounded-md backdrop-blur-md bg-white/30 px-2 py-1.5 shadow-sm border border-white/50 flex flex-wrap justify-center">
-              {filteredNavLinks.map(renderNavLink)}
-            </div>
-            </MaxWidthWrapper>
-            
-          </nav>
+          {renderDesktopNavigation()}
 
-          {/* Desktop Wallet */}
           <div className="hidden lg:block flex-shrink-0">
             {renderDesktopWallet()}
           </div>
 
-          {/* Mobile Menu */}
           {renderMobileMenu()}
         </div>
       </MaxWidthWrapper>
