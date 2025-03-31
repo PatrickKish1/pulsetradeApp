@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { doc, updateDoc } from 'firebase/firestore';
 import db from '../../../../../../firebase.config';
@@ -6,7 +6,7 @@ import db from '../../../../../../firebase.config';
 const PAYSTACK_SECRET_KEY = process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY;
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { reference: string } }
 ) {
   try {
