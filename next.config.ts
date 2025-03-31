@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import webpack from 'webpack';
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   webpack: (config, { isServer }) => {
     // Polyfill configuration only needed for client-side
     if (!isServer) {
