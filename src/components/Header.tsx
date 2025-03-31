@@ -103,12 +103,10 @@ export default function Header() {
   const primaryLinks = activeLink 
     ? [activeLink, ...filteredNavLinks.filter(link => 
         link !== activeLink && 
-        link.href !== '/' && 
-        link.href !== '/about' && 
-        link.href !== '/tutorials'
-      ).slice(0, 3)
+        link.href !== '/'
+      ).slice(0, 2)
     ]
-    : filteredNavLinks.slice(0, 4);
+    : filteredNavLinks.slice(0, 3);
   
   const additionalLinks = filteredNavLinks.filter(
     link => !primaryLinks.includes(link)
