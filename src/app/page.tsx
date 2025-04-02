@@ -26,7 +26,7 @@ interface CacheEntry {
 }
 const userStatusCache = new Map<string, CacheEntry>();
 
-export default function Index() {
+export default function HomePage() {
   const router = useRouter();
   const { isConnected, address, isLoading: isAuthLoading } = useAuth();
   const { userData, setUserData } = useAuthStore();

@@ -32,6 +32,7 @@ const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
   { href: '/tutorials', label: 'Tutorials' },
+  { href: '/contact', label: 'Contact Us' },
   { href: '/chats', label: 'Chats', requiresAuth: true, requiresOnboarding: true },
   { href: '/ai-chats', label: 'AI Chat', requiresAuth: true, requiresOnboarding: true },
   { href: '/trading', label: 'Trading', requiresAuth: true, requiresOnboarding: true },
@@ -100,13 +101,12 @@ export default function Header() {
   };
 
   const activeLink = filteredNavLinks.find(link => pathname === link.href);
-  const primaryLinks = activeLink 
+  const primaryLinks = activeLink
     ? [activeLink, ...filteredNavLinks.filter(link => 
-        link !== activeLink && 
-        link.href !== '/'
-      ).slice(0, 2)
+        link !== activeLink
+      ).slice(0, 5)
     ]
-    : filteredNavLinks.slice(0, 3);
+    : filteredNavLinks.slice(0, 4);
   
   const additionalLinks = filteredNavLinks.filter(
     link => !primaryLinks.includes(link)

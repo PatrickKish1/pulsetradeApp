@@ -72,7 +72,7 @@ export default function PredictionsClient({ initialPredictions = [] }: Predictio
 
   // PAYMENT CHARGES
   const handleAccessPayment = async () => {
-    await initializePayment(1600); // access fee
+    await initializePayment(3200); // access fee
   };
 
   const goToNextPage = () => {
