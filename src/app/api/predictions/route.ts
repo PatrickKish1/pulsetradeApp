@@ -1,11 +1,14 @@
 import { MongoClient } from 'mongodb';
 import { Prediction } from '@/src/hooks/predictions';
+import { NextResponse } from 'next/server';
 
-
-export async function GET(): Promise<Prediction[]> {
+export async function GET(): Promise<Response> {
   try {
     if (!process.env.MONGODB_URI) {
-      throw new Error('Please add your Mongo URI to .env.local');
+      return NextResponse.json(
+        { error: 'MongoDB URI not configured' },
+        { status: 500 }
+      );
     }
 
     const client = await MongoClient.connect(process.env.MONGODB_URI);
@@ -20,9 +23,12 @@ export async function GET(): Promise<Prediction[]> {
 
     await client.close();
     
-    return JSON.parse(JSON.stringify(predictions)) as Prediction[];
+    return NextResponse.json(predictions);
   } catch (error) {
     console.error('Error fetching predictions:', error);
-    return [];
+    return NextResponse.json(
+      { error: 'Failed to fetch predictions' },
+      { status: 500 }
+    );
   }
 }

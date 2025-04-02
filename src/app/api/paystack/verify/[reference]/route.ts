@@ -5,14 +5,13 @@ import db from '../../../../../../firebase.config';
 
 const PAYSTACK_SECRET_KEY = process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY;
 
-// Properly typed for Next.js App Router
 export async function GET(
   request: NextRequest,
-  context: { params: { reference: string } }
+  { params }: { params: Promise<{ reference: string }> }
 ) {
   try {
-    const { reference } = context.params;
-
+    const reference = (await params).reference;
+    
     if (!reference) {
       return NextResponse.json({ error: 'Reference is required' }, { status: 400 });
     }
