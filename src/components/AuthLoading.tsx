@@ -12,7 +12,7 @@ export function AuthLoading({ message = 'Loading...' }: AuthLoadingProps) {
       <div className="flex justify-center items-center h-64">
           <Image
             src="/logo.png"
-            alt="Loading"
+            alt="logo Loading"
             priority={true}
             width={48}
             height={48}
