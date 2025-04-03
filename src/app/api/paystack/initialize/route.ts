@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       {
         amount: amount, // Already in the smallest currency unit
         email,
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-callback`,
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/predictions/payment-callback`,
         metadata: { userAddress }
       },
       {
